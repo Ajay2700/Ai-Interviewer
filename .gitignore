@@ -1,0 +1,15 @@
+# Never commit secrets
+.env
+*.env
+backend/.env
+frontend/.env
+frontend/admin/.env
+frontend/candidate/.env
+
+# Python
+**/__pycache__/
+*.pyc
+
+# Node
+**/node_modules/
+**/dist/

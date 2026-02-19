@@ -1,0 +1,10 @@
+{
+  "name": "ai-interviewer-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "frontend": "npm --prefix frontend run dev",
+    "backend": "python -m uvicorn main:app --reload --port 8010 --app-dir backend",
+    "dev": "npm --prefix frontend run dev"
+  }
+}
