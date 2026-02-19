@@ -47,7 +47,7 @@ def _split_origins(value: str) -> list[str]:
 class Settings:
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     # DATABASE_URL supports PostgreSQL in production (e.g., Supabase), SQLite locally.
-    database_url: str = _normalize_database_url(os.getenv("DATABASE_URL", "postgresql://postgres:supabase@19022026@db.bzjzvyfdkpypgxjlvzan.supabase.co:5432/postgres"))
+    database_url: str = _normalize_database_url(os.getenv("DATABASE_URL", "postgresql://postgres:supabase%4019022026@db.bzjzvyfdkpypgxjlvzan.supabase.co:5432/postgres"))
     frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     candidate_origin: str = os.getenv("CANDIDATE_FRONTEND_ORIGIN", "http://localhost:5173")
     admin_origin: str = os.getenv("ADMIN_FRONTEND_ORIGIN", "http://localhost:5174")
