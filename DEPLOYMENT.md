@@ -16,7 +16,13 @@ Minimum required:
 - `DATABASE_URL` (Supabase connection string)
 - `ADMIN_API_KEY`
 - `ADMIN_AUTH_SECRET`
+- `ADMIN_ALLOWED_EMAIL` (email allowed to receive OTP and login)
 - `ALLOWED_ORIGINS` (comma separated deployed frontend URLs)
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `SMTP_FROM_EMAIL`
 
 For cost controls:
 

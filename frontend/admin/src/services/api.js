@@ -1,9 +1,19 @@
 import axios from 'axios';
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  'http://127.0.0.1:8010';
+function resolveBaseUrl() {
+  const explicit = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (explicit) return explicit;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      // In deployment, fallback to same-origin route (if proxy/rewrite exists).
+      return '';
+    }
+  }
+  return 'http://127.0.0.1:8010';
+}
+
+const BASE_URL = resolveBaseUrl();
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || 'admin@123';
 const ADMIN_TOKEN_KEY = 'admin_access_token';
 
@@ -15,6 +25,22 @@ function getStorage() {
 const api = axios.create({
   baseURL: BASE_URL,
 });
+
+function toConfigAwareError(err) {
+  if (err?.response) return err;
+  const hasExplicitApi =
+    !!import.meta.env.VITE_API_URL || !!import.meta.env.VITE_API_BASE_URL;
+  const isLocal =
+    typeof window !== 'undefined' &&
+    ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const detail =
+    !hasExplicitApi && !isLocal
+      ? 'Admin API URL is not configured. Set VITE_API_URL in Vercel to your Render backend URL (https://<service>.onrender.com).'
+      : `Unable to reach backend API (${BASE_URL || 'same-origin'}). Check Render health, HTTPS URL, and ALLOWED_ORIGINS.`;
+  const wrapped = new Error(detail);
+  wrapped.response = { data: { detail } };
+  return wrapped;
+}
 
 api.interceptors.request.use((config) => {
   const token = getStorage()?.getItem(ADMIN_TOKEN_KEY) || '';
@@ -44,18 +70,30 @@ export function getAdminToken() {
 }
 
 export async function requestAdminLoginCode(email) {
-  const res = await api.post('/api/admin/auth/request-code', { email });
-  return res.data;
+  try {
+    const res = await api.post('/api/admin/auth/request-code', { email });
+    return res.data;
+  } catch (err) {
+    throw toConfigAwareError(err);
+  }
 }
 
 export async function verifyAdminLoginCode(email, code) {
-  const res = await api.post('/api/admin/auth/verify-code', { email, code });
-  return res.data;
+  try {
+    const res = await api.post('/api/admin/auth/verify-code', { email, code });
+    return res.data;
+  } catch (err) {
+    throw toConfigAwareError(err);
+  }
 }
 
 export async function smtpTest(email) {
-  const res = await api.post('/api/admin/auth/smtp-test', { email });
-  return res.data;
+  try {
+    const res = await api.post('/api/admin/auth/smtp-test', { email });
+    return res.data;
+  } catch (err) {
+    throw toConfigAwareError(err);
+  }
 }
 
 export async function getQuestions() {
