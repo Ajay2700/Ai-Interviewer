@@ -9,6 +9,7 @@ import time
 from email.message import EmailMessage
 from typing import Dict
 
+import httpx
 from fastapi import HTTPException, status
 
 from core.config import settings
@@ -31,27 +32,71 @@ def _is_email_allowed(email: str) -> bool:
 
 
 def _send_email_otp(recipient: str, code: str) -> None:
-    if not settings.smtp_host or not settings.smtp_from_email:
-        raise RuntimeError("SMTP is not configured. Set SMTP_HOST and SMTP_FROM_EMAIL.")
-
-    msg = EmailMessage()
-    msg["Subject"] = "AI Interviewer Admin Login Code"
-    msg["From"] = settings.smtp_from_email
-    msg["To"] = recipient
-    msg.set_content(
+    subject = "AI Interviewer Admin Login Code"
+    body = (
         f"Your admin login code is: {code}\n\n"
         f"This code expires in {settings.admin_otp_ttl_seconds // 60} minutes."
     )
 
-    security_mode = (settings.smtp_security or "starttls").strip().lower()
-    if security_mode not in {"starttls", "ssl", "none"}:
-        raise RuntimeError("Invalid SMTP_SECURITY. Use one of: starttls, ssl, none.")
-    with _smtp_client(use_ssl=security_mode == "ssl") as server:
-        if security_mode == "starttls":
-            server.starttls()
-        if settings.smtp_user:
-            server.login(settings.smtp_user, settings.smtp_password)
-        server.send_message(msg)
+    smtp_error: Exception | None = None
+    if settings.smtp_host and settings.smtp_from_email:
+        try:
+            msg = EmailMessage()
+            msg["Subject"] = subject
+            msg["From"] = settings.smtp_from_email
+            msg["To"] = recipient
+            msg.set_content(body)
+
+            security_mode = (settings.smtp_security or "starttls").strip().lower()
+            if security_mode not in {"starttls", "ssl", "none"}:
+                raise RuntimeError("Invalid SMTP_SECURITY. Use one of: starttls, ssl, none.")
+            with _smtp_client(use_ssl=security_mode == "ssl") as server:
+                if security_mode == "starttls":
+                    server.starttls()
+                if settings.smtp_user:
+                    server.login(settings.smtp_user, settings.smtp_password)
+                server.send_message(msg)
+            return
+        except Exception as exc:
+            smtp_error = exc
+
+    # Fallback for deployments where SMTP egress is blocked.
+    if settings.resend_api_key and settings.resend_from_email:
+        _send_via_resend(recipient=recipient, subject=subject, body=body)
+        return
+
+    if smtp_error is not None:
+        raise RuntimeError(
+            "SMTP connection failed and no Resend fallback configured. "
+            "Set RESEND_API_KEY and RESEND_FROM_EMAIL or fix SMTP_HOST/SMTP_PORT."
+        ) from smtp_error
+    raise RuntimeError(
+        "Email provider is not configured. Configure SMTP_* or RESEND_API_KEY + RESEND_FROM_EMAIL."
+    )
+
+
+def _send_via_resend(*, recipient: str, subject: str, body: str) -> None:
+    payload = {
+        "from": settings.resend_from_email,
+        "to": [recipient],
+        "subject": subject,
+        "text": body,
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.resend_api_key}",
+        "Content-Type": "application/json",
+    }
+    try:
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            json=payload,
+            headers=headers,
+            timeout=20,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(f"Resend API error: {response.status_code} {response.text}")
+    except Exception as exc:
+        raise RuntimeError("Resend email fallback failed.") from exc
 
 
 def _smtp_client(*, use_ssl: bool = False) -> smtplib.SMTP:

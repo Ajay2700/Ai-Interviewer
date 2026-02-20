@@ -65,6 +65,8 @@ class Settings:
     smtp_password: str = os.getenv("SMTP_PASSWORD", "")
     smtp_from_email: str = os.getenv("SMTP_FROM_EMAIL", "").strip()
     smtp_security: str = os.getenv("SMTP_SECURITY", "starttls").strip().lower()
+    resend_api_key: str = os.getenv("RESEND_API_KEY", "").strip()
+    resend_from_email: str = os.getenv("RESEND_FROM_EMAIL", "").strip()
     admin_otp_ttl_seconds: int = _env_int("ADMIN_OTP_TTL_SECONDS", 300)
     allow_admin_key_fallback: bool = _env_bool("ALLOW_ADMIN_KEY_FALLBACK", False)
     daily_tokens_free: int = _env_int("DAILY_TOKENS_FREE", 1500)
