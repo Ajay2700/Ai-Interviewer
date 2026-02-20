@@ -214,16 +214,6 @@ function App() {
     try {
       const file = new File([audioBlob], `answer-${Date.now()}.webm`, { type: 'audio/webm' });
       const answerData = await submitInterviewAudio(file, question, candidateId);
-      const res = await getNextInterviewQuestion({
-        user_id: candidateId,
-        session_id: sessionId,
-        mode,
-        role,
-        difficulty,
-        previous_question: question,
-        user_answer: answerData.transcript,
-        question_index: questionIndex,
-      });
       const nextEntry = {
         question,
         source: questionSource,
@@ -237,8 +227,19 @@ function App() {
       const done = nextAnswers.length >= TOTAL_QUESTIONS;
       if (done) {
         setState(STATES.completed);
+        await loadUsageSummary();
         return;
       }
+      const res = await getNextInterviewQuestion({
+        user_id: candidateId,
+        session_id: sessionId,
+        mode,
+        role,
+        difficulty,
+        previous_question: question,
+        user_answer: answerData.transcript,
+        question_index: questionIndex,
+      });
       setQuestion(res.question || '');
       setQuestionSource(res.source || 'ai');
       setQuestionIndex(res.question_index ?? questionIndex + 1);

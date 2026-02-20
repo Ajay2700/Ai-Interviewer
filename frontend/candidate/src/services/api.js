@@ -1,15 +1,38 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  (window?.location?.hostname === 'localhost'
-    ? 'http://127.0.0.1:8010'
-    : `${window.location.protocol}//${window.location.hostname}:8010`);
+function resolveBaseUrl() {
+  const explicit = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (explicit) return explicit;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return '';
+    }
+  }
+  return 'http://127.0.0.1:8010';
+}
+
+const API_BASE_URL = resolveBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
+
+function toConfigAwareError(err) {
+  if (err?.response) return err;
+  const hasExplicitApi =
+    !!import.meta.env.VITE_API_URL || !!import.meta.env.VITE_API_BASE_URL;
+  const isLocal =
+    typeof window !== 'undefined' &&
+    ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const detail =
+    !hasExplicitApi && !isLocal
+      ? 'Candidate API URL is not configured. Set VITE_API_URL in Vercel to your Render backend URL (https://<service>.onrender.com).'
+      : `Unable to reach backend API (${API_BASE_URL || 'same-origin'}). Check backend health, HTTPS URL, and ALLOWED_ORIGINS.`;
+  const wrapped = new Error(detail);
+  wrapped.response = { data: { detail } };
+  return wrapped;
+}
 
 const CANDIDATE_STORAGE_KEY = 'ai-interviewer-candidate-id';
 let currentContext = {
@@ -42,9 +65,14 @@ export async function startInterview(role, difficulty) {
   };
   api.defaults.headers.common['x-user-id'] = userId;
 
-  const res = await api.get('/api/interview/start', {
-    params: { user_id: userId, role, difficulty, mode: currentContext.mode },
-  });
+  let res;
+  try {
+    res = await api.get('/api/interview/start', {
+      params: { user_id: userId, role, difficulty, mode: currentContext.mode },
+    });
+  } catch (err) {
+    throw toConfigAwareError(err);
+  }
   currentContext.sessionId = res.data.session_id || '';
   currentContext.questionIndex = Number(res.data.question_index ?? 0);
 
@@ -66,7 +94,12 @@ export async function getNextInterviewQuestion(payload) {
     user_answer: payload?.user_answer || '',
     question_index: currentContext.questionIndex,
   };
-  const res = await api.post('/api/interview/next', nextPayload);
+  let res;
+  try {
+    res = await api.post('/api/interview/next', nextPayload);
+  } catch (err) {
+    throw toConfigAwareError(err);
+  }
   currentContext.questionIndex = Number(res.data.question_index ?? currentContext.questionIndex + 1);
   return res.data;
 }

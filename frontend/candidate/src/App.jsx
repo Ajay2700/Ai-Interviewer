@@ -102,11 +102,6 @@ function App() {
     try {
       const file = new File([audioBlob], `answer-${Date.now()}.webm`, { type: 'audio/webm' });
       const answerData = await submitInterviewAudio(file, question);
-      const res = await getNextInterviewQuestion({
-        interview_id: interviewId,
-        previous_question: question,
-        user_answer: answerData.transcript,
-      });
       const nextEntry = {
         question,
         transcript: answerData.transcript,
@@ -121,6 +116,11 @@ function App() {
         setState(STATES.completed);
         return;
       }
+      const res = await getNextInterviewQuestion({
+        interview_id: interviewId,
+        previous_question: question,
+        user_answer: answerData.transcript,
+      });
       setQuestion(res.question || '');
       setQuestionIndex((prev) => prev + 1);
       setTimerLeft(QUESTION_SECONDS);

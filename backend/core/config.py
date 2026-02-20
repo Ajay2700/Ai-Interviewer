@@ -67,12 +67,13 @@ class Settings:
     admin_otp_ttl_seconds: int = _env_int("ADMIN_OTP_TTL_SECONDS", 300)
     allow_admin_key_fallback: bool = _env_bool("ALLOW_ADMIN_KEY_FALLBACK", False)
     daily_tokens_free: int = _env_int("DAILY_TOKENS_FREE", 1500)
-    daily_questions_free: int = _env_int("DAILY_QUESTIONS_FREE", 5)
-    max_questions_per_interview: int = _env_int("MAX_QUESTIONS_PER_INTERVIEW", 5)
-    max_ai_questions_per_interview: int = _env_int("MAX_AI_QUESTIONS_PER_INTERVIEW", 2)
+    daily_questions_free: int = _env_int("DAILY_QUESTIONS_FREE", 10)
+    max_questions_per_interview: int = _env_int("MAX_QUESTIONS_PER_INTERVIEW", 10)
+    max_ai_questions_per_interview: int = _env_int("MAX_AI_QUESTIONS_PER_INTERVIEW", 5)
     next_question_cooldown_seconds: int = _env_int("NEXT_QUESTION_COOLDOWN_SECONDS", 5)
     request_limit_per_minute: int = _env_int("REQUEST_LIMIT_PER_MINUTE", 10)
     max_audio_upload_bytes: int = _env_int("MAX_AUDIO_UPLOAD_BYTES", 5 * 1024 * 1024)
+    windows_browser_only: bool = _env_bool("WINDOWS_BROWSER_ONLY", True)
 
     @property
     def allowed_origins(self) -> list[str]:

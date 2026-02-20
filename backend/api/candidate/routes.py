@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile, status
 
 from core.config import settings
 from models.schemas import (
@@ -39,6 +39,31 @@ HYBRID_DB_QUESTIONS = 3
 LOGS_DIR = Path(__file__).resolve().parents[2] / "logs" / "proctoring"
 
 
+def _enforce_windows_browser_only(request: Request) -> None:
+    if not settings.windows_browser_only:
+        return
+    user_agent = (request.headers.get("user-agent") or "").lower()
+    ch_platform = (request.headers.get("sec-ch-ua-platform") or "").strip("\"' ").lower()
+    mobile_markers = ("android", "iphone", "ipad", "ipod", "mobile")
+    if any(marker in user_agent for marker in mobile_markers):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Interview access is restricted to Windows desktop browsers.",
+        )
+    if ch_platform:
+        if "windows" in ch_platform:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Interview access is restricted to Windows desktop browsers.",
+        )
+    if "windows" not in user_agent:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Interview access is restricted to Windows desktop browsers.",
+        )
+
+
 def _is_valid_audio_upload(audio: UploadFile) -> bool:
     content_type = (audio.content_type or "").lower()
     filename = (audio.filename or "").lower()
@@ -53,6 +78,7 @@ def _is_valid_audio_upload(audio: UploadFile) -> bool:
 
 @router.get("/start", response_model=InterviewStartResponse)
 async def start_interview(
+    request: Request,
     user_id: str = Query(..., min_length=2),
     role: str = Query(..., min_length=2),
     difficulty: str = Query(..., pattern="^(easy|medium|hard)$"),
@@ -66,6 +92,7 @@ async def start_interview(
     - Hybrid mode combines both: curated baseline + dynamic follow-ups.
     """
     try:
+        _enforce_windows_browser_only(request)
         check_question_limit(user_id)
         session_id = str(uuid4())
         company_questions = get_company_questions(
@@ -113,6 +140,8 @@ async def start_interview(
             question_index=0,
             db_questions_count=len(company_questions),
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("start_interview failed")
         raise HTTPException(
@@ -122,11 +151,12 @@ async def start_interview(
 
 
 @router.post("/next", response_model=InterviewNextResponse)
-async def next_question(payload: InterviewNextRequest):
+async def next_question(payload: InterviewNextRequest, request: Request):
     """
     Return next question based on selected interview mode.
     """
     try:
+        _enforce_windows_browser_only(request)
         if not (payload.user_answer or "").strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -208,10 +238,12 @@ async def next_question(payload: InterviewNextRequest):
 
 @router.post("/answer", response_model=AnswerResponse)
 async def answer(
+    request: Request,
     audio: UploadFile = File(...),
     question: str = Form(...),
     user_id: str = Form(""),
 ):
+    _enforce_windows_browser_only(request)
     if not _is_valid_audio_upload(audio):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
