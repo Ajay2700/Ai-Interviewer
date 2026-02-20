@@ -114,9 +114,9 @@ function App() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="inline-flex rounded-full bg-slate-900/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                  Interviewer Access
+                  AI Interviewer Access
                 </p>
-                <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">Admin Secure Login</h1>
+                <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">AI Interviewer Admin Login</h1>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                   Enter your approved admin email to receive a one-time verification code.
                 </p>
@@ -188,7 +188,7 @@ function App() {
               <p className="inline-flex rounded-full bg-slate-900/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
                 Proctored Interview Platform
               </p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">Admin (Interviewer) Panel</h1>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">AI Interviewer Admin Console</h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 Secure interviewer-side question management. Candidate UI has no admin controls.
               </p>
