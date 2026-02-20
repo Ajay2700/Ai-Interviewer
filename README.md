@@ -1,135 +1,183 @@
-﻿## AI Interviewer Web Application
+# AI Interviewer
 
-Full-stack, voice-based AI interviewer built with **FastAPI + OpenAI (GPT + Whisper)** on the backend and **React (Vite) + Tailwind CSS** on the frontend.
-
-The app simulates a real interview: it generates questions, records your spoken answers, transcribes them with Whisper, evaluates them with GPT, and returns a score with strengths, weaknesses, and improvements.
-
-This version includes a production-grade, proctored flow:
-- strict deterministic AI evaluation with confidence + verdict
-- controlled interview state machine (`environment_check`, `ready`, `interviewing`, `evaluating`, `completed`)
-- anti-cheating signals (tab switch, blur, copy/paste, right-click, shortcut blocking)
-- fullscreen immersive mode with violation tracking
-- camera proctoring using MediaPipe Face Landmarker (face count + basic gaze/lighting checks)
+> **Production-ready AI interview platform for realistic technical assessments with voice, proctoring, and cost-controlled AI orchestration.**
 
 ---
 
-## Separated Admin/Candidate Architecture
+## 🚀 Demo
 
-Admin and candidate systems are intentionally separated to improve security and scalability.
+- **Live App (Candidate):** `https://<candidate-app-url>`
+- **Live App (Admin):** `https://<admin-app-url>`
+- **Backend API:** `https://<backend-url>/health`
 
-- **Admin System (Interviewer)**:
-  - manages question CRUD
-  - calls `/api/admin/*`
-  - requires `x-admin-key` header
-- **Candidate System (Student)**:
-  - attends interview, submits voice answers, gets evaluation
-  - calls `/api/interview/*`
-  - has no admin actions or admin UI controls
+### Screenshots
 
-### Backend structure
-
-- `backend/main.py`
-- `backend/api/admin/routes.py`
-- `backend/api/candidate/routes.py`
-- `backend/services/question_service.py`
-- `backend/services/openai_service.py`
-- `backend/services/speech_service.py`
-- `backend/models/schemas.py`
-- `backend/core/config.py`
-- `backend/core/database.py`
-
-### Frontend structure
-
-- `frontend/admin/` (independent interviewer app, default port `5174`)
-- `frontend/candidate/` (independent candidate app, default port `5173`)
+- `docs/screenshots/candidate-interview.png`
+- `docs/screenshots/admin-dashboard.png`
+- `docs/screenshots/proctoring-panel.png`
 
 ---
 
-### 1. Project structure
+## ✨ Features
 
-- **backend** – FastAPI API
-  - `main.py` – FastAPI app, CORS, router registration
-  - `core/config.py` – central settings/env config
-  - `api/interview_routes.py` – interview start/next/audio routes
-  - `api/admin_routes.py` – question CRUD admin APIs
-  - `services/question_service.py` – SQLite question management logic
-  - `services/openai_service.py` – GPT question generation + strict evaluation
-  - `services/whisper_service.py` – Whisper speech-to-text
-  - `models/schemas.py` – Pydantic models for request/response validation
-  - `utils/prompts.py` – prompt templates
-  - `requirements.txt` – backend dependencies
-- **frontend** – Vite React SPA
-  - `src/App.jsx` – shell, theme, routing between interview and results
-  - `src/pages/Admin.jsx` – admin panel for question management
-  - `src/components/QuestionForm.jsx` – add/edit question form
-  - `src/components/QuestionList.jsx` – list/edit/delete questions
-  - `src/hooks/useProctoring.js` – anti-cheat and proctoring state
-  - `src/hooks/useFullscreen.js` – fullscreen enforcement
-  - `src/components/CameraMonitor.jsx` – camera feed + face/gaze checks (MediaPipe)
-  - `src/components/WarningModal.jsx` – suspicious activity warning modal
-  - `src/pages/EnvironmentCheck.jsx` – pre-interview readiness checks
-  - `src/pages/Interview.jsx` – main interview flow
-  - `src/pages/Result.jsx` – evaluation result view
-  - `src/components/Recorder.jsx` – audio recording with `MediaRecorder`
-  - `src/components/Loader.jsx` – loading indicator
-  - `src/services/api.js` – Axios API client
+- AI-generated interview questions tailored by role and difficulty
+- Company-curated question bank with admin CRUD controls
+- Hybrid interview mode (DB-first + AI follow-ups)
+- Voice answer capture + speech-to-text transcription
+- Strict AI evaluation with score, confidence, verdict, and actionable feedback
+- Proctoring signals: face presence, gaze state, tab switching, blur/focus violations
+- Anti-cheating controls: fullscreen workflow, violation tracking, threshold handling
+- Usage controls: token tracking, question limits, cooldowns, rate limiting
+- Scalable architecture with stateless backend patterns and DB-backed session state
+- Admin secure login flow with OTP and token-based authorization
 
 ---
 
-### 2. Backend setup (FastAPI)
+## 🏗️ System Architecture
 
-1. **Create & activate virtualenv** (recommended):
+```text
+Frontend (React/Vite)
+   ├─ Candidate App
+   └─ Admin App
+            │
+            ▼
+Backend API (FastAPI)
+   ├─ Interview Orchestration
+   ├─ Admin Auth + Question Management
+   ├─ Usage/Rate Limit Middleware
+   └─ Proctoring Log Endpoints
+            │
+            ├────────► OpenAI APIs (GPT + Whisper)
+            │
+            └────────► PostgreSQL (Supabase)
+```
 
-   ```bash
-   cd backend
-   python -m venv .venv
-   # Windows PowerShell
-   .venv\Scripts\Activate.ps1
-   # or Command Prompt
-   .venv\Scripts\activate.bat
-   ```
+**Flow:** Frontend handles UX and media capture, backend enforces business rules/security, AI services power generation/evaluation, and PostgreSQL persists state/usage.
 
-2. **Install dependencies**:
+---
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+## 🧰 Tech Stack
 
-3. **Configure environment variable**:
+### Frontend
+- React (Vite)
+- Tailwind CSS
+- Axios
 
-   Create a backend `.env` file:
+### Backend
+- FastAPI
+- Python 3.11
+- SQLAlchemy
+- Pydantic
 
-   **Path:** `backend/.env`
+### AI
+- OpenAI GPT (question generation + evaluation)
+- OpenAI Whisper (speech-to-text)
 
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   FRONTEND_ORIGIN=http://localhost:5173
-ADMIN_API_KEY=change_me_admin_key
-CANDIDATE_FRONTEND_ORIGIN=http://localhost:5173
-ADMIN_FRONTEND_ORIGIN=http://localhost:5174
-   ```
+### Data & Infra
+- PostgreSQL (Supabase)
+- Vercel (frontend hosting)
+- Render (backend hosting)
 
-   > The backend loads `.env` automatically via `python-dotenv`.
+---
 
-4. **Run the backend server**:
+## 🔄 How It Works
 
-   ```bash
-   uvicorn main:app --reload --port 8000
-   ```
+1. **Start Interview**
+   - Candidate selects role, difficulty, mode.
+   - Backend validates limits/session policy and returns first question.
 
-5. **Key endpoints**:
+2. **Ask Question**
+   - DB question (company/hybrid) or AI-generated question is served.
 
-   - Candidate:
-     - `GET /api/interview/start?role=Frontend%20Developer&difficulty=easy`
-     - `POST /api/interview/answer` (multipart with `audio`, `question`)
-     - `POST /api/interview/next`
-   - Admin (requires `x-admin-key`):
-     - `POST /api/admin/question`
-     - `GET /api/admin/questions`
-     - `PUT /api/admin/question/{id}`
-     - `DELETE /api/admin/question/{id}`
+3. **Record Answer**
+   - Candidate records voice in browser and submits audio.
 
-### Run Candidate Frontend
+4. **AI Evaluation**
+   - Whisper transcribes speech.
+   - GPT evaluates answer quality, returns score + feedback.
+
+5. **Result**
+   - Candidate receives structured summary and final outcome.
+
+---
+
+## 🧠 AI Capabilities
+
+- **Question Generation:** Role-aware, difficulty-aware prompts with controlled response style.
+- **Evaluation Logic:** Deterministic rubric-style scoring to reduce output variance.
+- **Prompt Engineering:** Compact system prompts, bounded tokens, low temperature for consistency.
+- **Anti-Hallucination Approach:**
+  - DB-first questioning in company/hybrid modes
+  - constrained output format
+  - strict context-driven follow-up generation
+
+---
+
+## 🔐 Security & Cost Control
+
+- Per-user usage tracking (`users`, `usage_logs`)
+- Daily token and question quotas
+- Per-session question caps + AI follow-up caps
+- Request rate limiting middleware
+- CORS hardening with explicit allowed origins
+- Admin OTP login + signed access token verification
+- Clear 4xx/429 responses for limit/policy enforcement
+
+---
+
+## 🛡️ Proctoring System
+
+- **Face Detection:** Detects absence/multiple faces and flags risks.
+- **Gaze Tracking:** Basic gaze-center checks for interview engagement.
+- **Behavioral Signals:** Tab switch, blur/focus, shortcut attempts, and violation logging.
+- **Interview Guardrails:** Fullscreen-first flow with violation threshold handling.
+
+---
+
+## 📁 Project Structure
+
+```text
+AI-Interviewer/
+├── backend/
+│   ├── api/
+│   │   ├── admin/
+│   │   └── candidate/
+│   ├── core/
+│   ├── models/
+│   ├── services/
+│   ├── requirements.txt
+│   └── main.py
+├── frontend/
+│   ├── admin/
+│   ├── candidate/
+│   └── src/
+├── DEPLOYMENT.md
+└── README.md
+```
+
+---
+
+## ⚙️ Installation
+
+### 1) Clone Repository
+
+```bash
+git clone https://github.com/<your-username>/<your-repo>.git
+cd <your-repo>
+```
+
+### 2) Backend Setup
+
+```bash
+cd backend
+python -m venv .venv
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8010
+```
+
+### 3) Frontend Setup (Candidate)
 
 ```bash
 cd frontend/candidate
@@ -137,16 +185,7 @@ npm install
 npm run dev
 ```
 
-### Run Admin Frontend
-
-Create `frontend/admin/.env.local`:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000
-VITE_ADMIN_KEY=change_me_admin_key
-```
-
-Then run:
+### 4) Frontend Setup (Admin)
 
 ```bash
 cd frontend/admin
@@ -154,146 +193,81 @@ npm install
 npm run dev
 ```
 
-Candidate app: `http://localhost:5173`  
-Admin app: `http://localhost:5174`
+---
 
-   - `POST /api/interview/next`
-   - `POST /api/admin/question`
-   - `GET /api/admin/questions`
-   - `PUT /api/admin/question/{id}`
-   - `DELETE /api/admin/question/{id}`
+## 🔧 Environment Variables
 
-### Database setup
+### Backend (`backend/.env`)
 
-The backend uses SQLite and auto-creates `questions` table at startup:
+```env
+OPENAI_API_KEY=your_openai_key
+DATABASE_URL=postgresql+psycopg2://<user>:<password>@<host>:6543/postgres?sslmode=require
+ALLOWED_ORIGINS=https://<candidate-app>.vercel.app,https://<admin-app>.vercel.app
 
-- `id` (pk, autoincrement)
-- `role` (text)
-- `difficulty` (easy/medium/hard)
-- `question` (text)
-- `created_at` (timestamp)
+# Admin auth and email
+ADMIN_API_KEY=your_admin_key
+ADMIN_AUTH_SECRET=your_secret
+ADMIN_ALLOWED_EMAIL=admin@yourdomain.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@example.com
+SMTP_PASSWORD=app_password
+SMTP_FROM_EMAIL=you@example.com
+SMTP_SECURITY=starttls
 
-Why this hybrid model:
-- DB questions provide deterministic, curated quality and admin control.
-- AI serves as fallback/follow-up when DB questions are exhausted or unavailable.
+# Optional fallback
+RESEND_API_KEY=re_xxxxxxxxxxxxx
+RESEND_FROM_EMAIL=onboarding@resend.dev
+```
+
+### Frontend (`frontend/admin/.env`, `frontend/candidate/.env`)
+
+```env
+VITE_API_URL=https://<your-render-backend>.onrender.com
+```
 
 ---
 
-### 3. Frontend setup (Vite React + Tailwind)
+## 🌍 Deployment
 
-1. **Install dependencies**:
+- **Frontend:** Vercel (`frontend/candidate` and `frontend/admin` as separate projects)
+- **Backend:** Render (root: `backend`, start: `uvicorn main:app --host 0.0.0.0 --port 10000`)
+- **Database:** Supabase PostgreSQL (pooler URL recommended)
 
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-2. **Run the dev server**:
-
-   ```bash
-   npm run dev
-   ```
-
-   By default this runs on `http://localhost:5173`, which is already allowed by the backend CORS config.
-
-3. **Frontend environment (optional)**:
-
-   Create a frontend `.env.local` file:
-
-   **Path:** `frontend/.env.local`
-
-   ```env
-   VITE_API_BASE_URL=http://localhost:8000
-   ```
-
-3. **Tech stack**:
-
-   - React (Vite)
-   - Tailwind CSS (`tailwind.config.js` with `darkMode: 'class'`)
-   - Axios for API communication
-   - `MediaRecorder` API for audio recording
-  - MediaPipe (`@mediapipe/tasks-vision`) for proctoring
+For full production steps, see [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 ---
 
-### 4. Frontend flow & features
+## 🧭 Future Improvements
 
-- **Role selection** – choose from Frontend, Backend, Full Stack, AI/ML, DevOps.
-- **Question generation** – calls `GET /api/interview/question?role=...` and displays the question.
-- **Recording** – `Recorder` component uses `MediaRecorder`:
-  - Start/Stop recording
-  - Local timer and max duration (e.g. 180s)
-  - Converts chunks into a `Blob` and sends it back to parent
-- **Submitting an answer** – converts the `Blob` to a `File` and calls `submitAnswer(file)`:
-  - Displays loading state while waiting for backend
-  - Shows errors if the request fails
-- **Result display**:
-  - Transcript of the answer
-  - Score out of 10 with a visual progress bar
-  - Strengths / Weaknesses / Improvements lists
-  - Overall feedback paragraph
-- **Advanced features**:
-  - Timer while answering
-  - Next question button (re-use "Start / Next question")
-  - Multi-question session (session history in right sidebar)
-  - History persisted in `localStorage`
-  - Dark mode toggle (stored in `localStorage` and applied via `document.documentElement.classList`)
+- Adaptive difficulty from live performance trajectory
+- Multi-tenant organization support and role-based analytics
+- Rich interviewer analytics dashboard (funnel, fairness, drift)
+- Redis caching for generated questions and distributed rate limiting
+- Worker queue (Celery/RQ) for async heavy AI tasks
 
 ---
 
-### 5. Running the full stack locally
+## 🤝 Contribution
 
-1. **Start backend**:
+Contributions are welcome.
 
-   ```bash
-   cd backend
-   # Activate venv if using one
-   uvicorn main:app --reload --port 8000
-   ```
+1. Fork the repository
+2. Create a feature branch
+3. Commit changes with clear messages
+4. Open a pull request
 
-2. **Start frontend** (in a separate terminal):
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-3. **Open the app**:
-
-   - Navigate to `http://localhost:5173` in your browser.
-
-4. **Interview flow**:
-
-   - Select a role and click **“Start / Next question”**.
-   - Read the question and click **“Start recording”**.
-   - Speak your answer, then **“Stop recording”**.
-   - Click **“Submit answer”** and wait for the evaluation.
-   - Review the **score**, **feedback**, and **history**, then repeat with **“New question”**.
+Please keep changes production-focused and include testing notes.
 
 ---
 
-### 6. Root scripts (optional)
+## 📄 License
 
-If you prefer running from the project root:
+This project is licensed under the **MIT License**.  
+You can add a `LICENSE` file in the repo root if not already present.
 
-- Start frontend from root:
+---
 
-  ```bash
-  npm run frontend
-  ```
+### ⭐ Recruiter Note
 
-- Start backend from root:
-
-  ```bash
-  npm run backend
-  ```
-
-### 7. Notes & production considerations
-
-- The backend uses the official `openai` SDK (`OpenAI` client) for both GPT and Whisper.
-- Make sure your OpenAI account has access to the `whisper-1` model and a suitable GPT model (`gpt-4o-mini` in this code).
-- For production:
-  - Use HTTPS and secure cookie / token-based auth if you tie this to user accounts.
-  - Consider rate limiting and request size limits on the FastAPI endpoints.
-  - Host the backend and frontend separately (or behind a reverse proxy) and adjust CORS and `baseURL` in `src/services/api.js` accordingly.
-
+This project demonstrates end-to-end engineering across **AI integration, backend scalability, security controls, and production deployment troubleshooting**—with practical focus on reliability, observability, and cost governance.
