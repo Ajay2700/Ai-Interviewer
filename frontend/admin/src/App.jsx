@@ -11,6 +11,14 @@ import { useEffect, useState } from 'react';
 
 const THEME_KEY = 'admin-ui-theme';
 
+function getErrorDetail(err, fallback) {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail.trim();
+  const message = err?.message;
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  return fallback;
+}
+
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -61,7 +69,7 @@ function App() {
       setSent(true);
       setAuthInfo('Verification code sent to your email.');
     } catch (err) {
-      setAuthError(err?.response?.data?.detail || 'Failed to send verification code.');
+      setAuthError(getErrorDetail(err, 'Failed to send verification code.'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +85,7 @@ function App() {
       setAdminToken(res.access_token);
       setAuthed(true);
     } catch (err) {
-      setAuthError(err?.response?.data?.detail || 'Invalid verification code.');
+      setAuthError(getErrorDetail(err, 'Invalid verification code.'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +99,7 @@ function App() {
       const res = await smtpTest(email);
       setAuthInfo(res?.message || 'SMTP test email sent successfully.');
     } catch (err) {
-      setAuthError(err?.response?.data?.detail || 'SMTP test failed.');
+      setAuthError(getErrorDetail(err, 'SMTP test failed.'));
     } finally {
       setLoading(false);
     }
