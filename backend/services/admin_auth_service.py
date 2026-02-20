@@ -43,14 +43,18 @@ def _send_email_otp(recipient: str, code: str) -> None:
         f"This code expires in {settings.admin_otp_ttl_seconds // 60} minutes."
     )
 
-    with _smtp_client() as server:
-        server.starttls()
+    security_mode = (settings.smtp_security or "starttls").strip().lower()
+    if security_mode not in {"starttls", "ssl", "none"}:
+        raise RuntimeError("Invalid SMTP_SECURITY. Use one of: starttls, ssl, none.")
+    with _smtp_client(use_ssl=security_mode == "ssl") as server:
+        if security_mode == "starttls":
+            server.starttls()
         if settings.smtp_user:
             server.login(settings.smtp_user, settings.smtp_password)
         server.send_message(msg)
 
 
-def _smtp_client() -> smtplib.SMTP:
+def _smtp_client(*, use_ssl: bool = False) -> smtplib.SMTP:
     """
     Create SMTP connection with IPv4 fallback.
 
@@ -58,8 +62,9 @@ def _smtp_client() -> smtplib.SMTP:
     [Errno 101] Network is unreachable.
     """
     last_error: Exception | None = None
+    smtp_ctor = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
     try:
-        return smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
+        return smtp_ctor(settings.smtp_host, settings.smtp_port, timeout=20)
     except OSError as exc:
         last_error = exc
 
@@ -73,7 +78,7 @@ def _smtp_client() -> smtplib.SMTP:
         for family, socktype, proto, _canonname, sockaddr in infos:
             ip, port = sockaddr[0], sockaddr[1]
             try:
-                server = smtplib.SMTP(timeout=20)
+                server = smtp_ctor(timeout=20)
                 server.connect(ip, port)
                 return server
             except OSError as exc:
