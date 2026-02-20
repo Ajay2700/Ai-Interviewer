@@ -27,12 +27,22 @@ const api = axios.create({
 });
 
 function toConfigAwareError(err) {
-  if (err?.response) return err;
   const hasExplicitApi =
     !!import.meta.env.VITE_API_URL || !!import.meta.env.VITE_API_BASE_URL;
   const isLocal =
     typeof window !== 'undefined' &&
     ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (err?.response) {
+    const status = Number(err.response.status || 0);
+    if (status === 404) {
+      const detail =
+        !hasExplicitApi && !isLocal
+          ? 'Admin API URL is missing in deployment. Set VITE_API_URL to your Render backend URL (https://<service>.onrender.com) and redeploy this admin app.'
+          : `Admin API endpoint not found (404) at ${BASE_URL || 'same-origin'}. Check VITE_API_URL and confirm backend exposes /api/admin/auth/request-code.`;
+      err.response.data = { ...(err.response.data || {}), detail };
+    }
+    return err;
+  }
   const detail =
     !hasExplicitApi && !isLocal
       ? 'Admin API URL is not configured. Set VITE_API_URL in Vercel to your Render backend URL (https://<service>.onrender.com).'
