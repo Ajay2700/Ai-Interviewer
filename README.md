@@ -16,10 +16,8 @@
 - <img width="1901" height="812" alt="image" src="https://github.com/user-attachments/assets/56166ded-a2a2-487d-85a2-a72337223cb0" />
 - <img width="1889" height="1023" alt="image" src="https://github.com/user-attachments/assets/78fe153c-fa50-49f4-bb0f-f777c3c66e97" />
 - <img width="1889" height="835" alt="image" src="https://github.com/user-attachments/assets/393a9831-0de6-4208-b94a-746caba2cd98" />
+- <img width="1896" height="873" alt="image" src="https://github.com/user-attachments/assets/32a03667-b647-4db0-8994-c479502d34b5" />
 
-
-- `<img width="1896" height="873" alt="image" src="https://github.com/user-attachments/assets/32a03667-b647-4db0-8994-c479502d34b5" />
-`
 - `docs/screenshots/proctoring-panel.png`
 
 ---
