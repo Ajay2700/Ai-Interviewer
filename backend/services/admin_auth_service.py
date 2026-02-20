@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import socket
 import smtplib
 import time
 from email.message import EmailMessage
@@ -42,11 +43,48 @@ def _send_email_otp(recipient: str, code: str) -> None:
         f"This code expires in {settings.admin_otp_ttl_seconds // 60} minutes."
     )
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as server:
+    with _smtp_client() as server:
         server.starttls()
         if settings.smtp_user:
             server.login(settings.smtp_user, settings.smtp_password)
         server.send_message(msg)
+
+
+def _smtp_client() -> smtplib.SMTP:
+    """
+    Create SMTP connection with IPv4 fallback.
+
+    Some cloud networks can fail on IPv6 routes and raise:
+    [Errno 101] Network is unreachable.
+    """
+    last_error: Exception | None = None
+    try:
+        return smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
+    except OSError as exc:
+        last_error = exc
+
+    try:
+        infos = socket.getaddrinfo(
+            settings.smtp_host,
+            settings.smtp_port,
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM,
+        )
+        for family, socktype, proto, _canonname, sockaddr in infos:
+            ip, port = sockaddr[0], sockaddr[1]
+            try:
+                server = smtplib.SMTP(timeout=20)
+                server.connect(ip, port)
+                return server
+            except OSError as exc:
+                last_error = exc
+                continue
+    except OSError as exc:
+        last_error = exc
+
+    raise RuntimeError(
+        "SMTP connection failed. Verify SMTP_HOST/SMTP_PORT and provider network access."
+    ) from last_error
 
 
 def send_smtp_test_email(recipient: str) -> Dict[str, str]:
