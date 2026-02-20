@@ -47,14 +47,17 @@ let currentContext = {
 function getOrCreateCandidateId() {
   const existing = window.localStorage.getItem(CANDIDATE_STORAGE_KEY);
   if (existing) return existing;
-  const generated =
-    (window.crypto?.randomUUID && window.crypto.randomUUID()) || `candidate-${Date.now()}`;
+  const generated = generateCandidateId();
   window.localStorage.setItem(CANDIDATE_STORAGE_KEY, generated);
   return generated;
 }
 
+function generateCandidateId() {
+  return (window.crypto?.randomUUID && window.crypto.randomUUID()) || `candidate-${Date.now()}`;
+}
+
 export async function startInterview(role, difficulty) {
-  const userId = getOrCreateCandidateId();
+  let userId = getOrCreateCandidateId();
   currentContext = {
     userId,
     role,
@@ -71,7 +74,24 @@ export async function startInterview(role, difficulty) {
       params: { user_id: userId, role, difficulty, mode: currentContext.mode },
     });
   } catch (err) {
-    throw toConfigAwareError(err);
+    const normalized = toConfigAwareError(err);
+    const detail = normalized?.response?.data?.detail || '';
+    if (String(detail).includes('Question limit reached')) {
+      // Anonymous candidate flow: rotate browser-local ID for a fresh test run.
+      userId = generateCandidateId();
+      window.localStorage.setItem(CANDIDATE_STORAGE_KEY, userId);
+      currentContext.userId = userId;
+      api.defaults.headers.common['x-user-id'] = userId;
+      try {
+        res = await api.get('/api/interview/start', {
+          params: { user_id: userId, role, difficulty, mode: currentContext.mode },
+        });
+      } catch (retryErr) {
+        throw toConfigAwareError(retryErr);
+      }
+    } else {
+      throw normalized;
+    }
   }
   currentContext.sessionId = res.data.session_id || '';
   currentContext.questionIndex = Number(res.data.question_index ?? 0);

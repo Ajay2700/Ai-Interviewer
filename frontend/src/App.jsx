@@ -43,6 +43,11 @@ function ensureId(storageKey, fallbackPrefix) {
   return next;
 }
 
+function createId(fallbackPrefix) {
+  if (typeof window === 'undefined') return `${fallbackPrefix}-${Date.now()}`;
+  return (window.crypto?.randomUUID && window.crypto.randomUUID()) || `${fallbackPrefix}-${Date.now()}`;
+}
+
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -64,7 +69,7 @@ function App() {
   const [pendingSkipCompletion, setPendingSkipCompletion] = useState(null);
   const [sessionId, setSessionId] = useState('');
   const [logUploaded, setLogUploaded] = useState(false);
-  const [candidateId] = useState(() => ensureId(CANDIDATE_KEY, 'candidate'));
+  const [candidateId, setCandidateId] = useState(() => ensureId(CANDIDATE_KEY, 'candidate'));
   const [usageSummary, setUsageSummary] = useState(null);
   const [usageError, setUsageError] = useState('');
 
@@ -118,9 +123,9 @@ function App() {
     setCandidateContext(candidateId);
   }, [candidateId]);
 
-  const loadUsageSummary = async () => {
+  const loadUsageSummary = async (userId = candidateId) => {
     try {
-      const usage = await getUsageSummary(candidateId);
+      const usage = await getUsageSummary(userId);
       setUsageSummary(usage);
       setUsageError('');
       return usage;
@@ -173,10 +178,26 @@ function App() {
 
   const startInterview = async () => {
     setError('');
-    const usage = await loadUsageSummary();
+    const rotateCandidate = () => {
+      const nextCandidateId = createId('candidate');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(CANDIDATE_KEY, nextCandidateId);
+      }
+      setCandidateId(nextCandidateId);
+      setCandidateContext(nextCandidateId);
+      return nextCandidateId;
+    };
+
+    let activeCandidateId = candidateId;
+    let usage = await loadUsageSummary(activeCandidateId);
     if (usage && usage.questions_left_today <= 0) {
-      setError('Question limit reached. Please try again tomorrow.');
-      return;
+      // Anonymous/public candidate flow: rotate test identity if a stale local ID exhausted quota.
+      activeCandidateId = rotateCandidate();
+      usage = await loadUsageSummary(activeCandidateId);
+      if (usage && usage.questions_left_today <= 0) {
+        setError('Question limit reached. Please try again tomorrow.');
+        return;
+      }
     }
     await fullscreen.requestFullscreen();
     setState(STATES.interviewing);
@@ -194,15 +215,28 @@ function App() {
       extensionDetectionSupported: false,
       note: 'Browsers do not allow full extension/tool enumeration.',
     });
-    try {
-      const res = await startInterviewApi(candidateId, role, difficulty, mode);
+    const applyStartResponse = async (res) => {
       setSessionId(res.session_id || '');
       setQuestion(res.question);
       setQuestionSource(res.source || 'database');
       setQuestionIndex(res.question_index || 0);
-      await loadUsageSummary();
+      await loadUsageSummary(activeCandidateId);
+    };
+    try {
+      const res = await startInterviewApi(activeCandidateId, role, difficulty, mode);
+      await applyStartResponse(res);
     } catch (err) {
       const detail = err?.response?.data?.detail;
+      if ((detail || '').includes('Question limit reached')) {
+        try {
+          activeCandidateId = rotateCandidate();
+          const retryRes = await startInterviewApi(activeCandidateId, role, difficulty, mode);
+          await applyStartResponse(retryRes);
+          return;
+        } catch {
+          // Fall through to shared error message below.
+        }
+      }
       setError(detail ? `Failed to fetch question: ${detail}` : 'Failed to fetch question.');
       setState(STATES.ready);
     }
