@@ -1,4 +1,4 @@
-<img width="1881" height="892" alt="image" src="https://github.com/user-attachments/assets/de25f893-d7ef-446e-87d5-a89c7f2258a9" /># AI Interviewer
+# AI Interviewer
 
 > **Production-ready AI interview platform for realistic technical assessments with voice, proctoring, and cost-controlled AI orchestration.**
 
