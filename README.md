@@ -1,4 +1,4 @@
-# AI Interviewer
+<img width="1881" height="892" alt="image" src="https://github.com/user-attachments/assets/de25f893-d7ef-446e-87d5-a89c7f2258a9" /># AI Interviewer
 
 > **Production-ready AI interview platform for realistic technical assessments with voice, proctoring, and cost-controlled AI orchestration.**
 
@@ -6,14 +6,20 @@
 
 ## 🚀 Demo
 
-- **Live App (Candidate):** `https://<candidate-app-url>`
-- **Live App (Admin):** `https://<admin-app-url>`
-- **Backend API:** `https://<backend-url>/health`
+- **Live App (Candidate):** `https://ai-interviewer-theta-tan.vercel.app/`
+- **Live App (Admin):** `https://ai-interviewer-onoh.vercel.app/`
+- **Backend API:** `https://ai-interviewer-4po6.onrender.com/docs`
 
 ### Screenshots
 
-- `docs/screenshots/candidate-interview.png`
-- `docs/screenshots/admin-dashboard.png`
+- `<img width="1881" height="892" alt="image" src="https://github.com/user-attachments/assets/8a4da277-e421-4df1-afe7-99adceefb3ee" />`
+- `<img width="1901" height="812" alt="image" src="https://github.com/user-attachments/assets/56166ded-a2a2-487d-85a2-a72337223cb0" />`
+- `<img width="1889" height="1023" alt="image" src="https://github.com/user-attachments/assets/78fe153c-fa50-49f4-bb0f-f777c3c66e97" />`
+- `<img width="1889" height="835" alt="image" src="https://github.com/user-attachments/assets/393a9831-0de6-4208-b94a-746caba2cd98" />
+`
+
+- `<img width="1896" height="873" alt="image" src="https://github.com/user-attachments/assets/32a03667-b647-4db0-8994-c479502d34b5" />
+`
 - `docs/screenshots/proctoring-panel.png`
 
 ---
