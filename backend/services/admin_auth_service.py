@@ -94,9 +94,16 @@ def _send_via_resend(*, recipient: str, subject: str, body: str) -> None:
             timeout=20,
         )
         if response.status_code >= 400:
-            raise RuntimeError(f"Resend API error: {response.status_code} {response.text}")
+            detail = response.text
+            try:
+                parsed = response.json()
+                if isinstance(parsed, dict):
+                    detail = str(parsed.get("message") or parsed.get("error") or parsed)
+            except Exception:
+                pass
+            raise RuntimeError(f"Resend API error ({response.status_code}): {detail}")
     except Exception as exc:
-        raise RuntimeError("Resend email fallback failed.") from exc
+        raise RuntimeError(f"Resend email fallback failed: {exc}") from exc
 
 
 def _smtp_client(*, use_ssl: bool = False) -> smtplib.SMTP:
