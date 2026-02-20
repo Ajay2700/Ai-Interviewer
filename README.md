@@ -263,14 +263,6 @@ Contributions are welcome.
 
 Please keep changes production-focused and include testing notes.
 
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**.  
-You can add a `LICENSE` file in the repo root if not already present.
-
----
 
 ### ⭐ Recruiter Note
 
