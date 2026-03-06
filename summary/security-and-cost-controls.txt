@@ -1,0 +1,13 @@
+Security:
+- CORS restricted to configured ALLOWED_ORIGINS
+- Admin OTP login with HMAC-signed bearer tokens; optional static admin key fallback (local/dev)
+- Windows desktop browser enforcement for candidate endpoints (configurable)
+- Upload size limit and file-type validation for audio
+- Proctoring logs persisted as JSONL (no system-extension enumeration due to browser sandbox)
+
+Cost governance:
+- Daily token and question quotas by plan (free/pro)
+- Per-session cooldowns and per-interview caps (total and AI follow-ups)
+- DB-first strategy for deterministic questions in company/hybrid modes
+- Short cache for repeated question generations
+- DB-backed minute rate-limiting using RequestLog

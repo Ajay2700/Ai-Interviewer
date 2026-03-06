@@ -1,0 +1,16 @@
+Backend (Windows PowerShell):
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8010
+
+Candidate app:
+cd frontend\candidate
+npm install
+npm run dev
+
+Admin app:
+cd frontend\admin
+npm install
+npm run dev

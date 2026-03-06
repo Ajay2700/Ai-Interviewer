@@ -1,0 +1,20 @@
+Recommended hosting:
+- Backend API: Render (root=backend)
+  Build: pip install -r requirements.txt
+  Start: uvicorn main:app --host 0.0.0.0 --port 10000
+  Configure env from backend/env.example and DEPLOYMENT.md
+
+- Database: Supabase PostgreSQL
+  Create project and set DATABASE_URL in Render; backend auto-creates tables
+
+- Frontend: Vercel
+  Candidate root: frontend
+  Admin root: frontend/admin
+  Set VITE_API_URL to the Render backend URL
+
+CORS:
+- Set ALLOWED_ORIGINS to deployed candidate and admin app URLs
+
+Production notes:
+- Use quotas, cooldowns, and rate limits to control OpenAI costs
+- Consider Redis and a worker queue for large scale

@@ -1,0 +1,14 @@
+users
+- id, created_at, plan, total_tokens_used, daily_tokens_used, daily_questions_used, questions_attempted, last_usage_day
+
+questions
+- id, company, role, difficulty, question, created_at
+
+usage_logs
+- id, user_id, tokens_used, endpoint, timestamp
+
+interview_sessions
+- session_id, user_id, role, difficulty, mode, question_index, ai_questions_used, status, last_question_at, created_at
+
+request_logs
+- id, requester_key, endpoint, timestamp (used for rate limiting)

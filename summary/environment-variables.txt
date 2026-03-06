@@ -1,0 +1,14 @@
+OPENAI_API_KEY: OpenAI credentials for GPT and Whisper
+DATABASE_URL: PostgreSQL (e.g., Supabase) or SQLite for local; postgres:// normalized to postgresql://
+ALLOWED_ORIGINS: Comma-separated frontend URLs for CORS
+
+Admin/Auth/Email:
+ADMIN_API_KEY: Setup key and optional fallback header for local/dev
+ADMIN_AUTH_SECRET: HMAC secret for admin token signing
+ADMIN_ALLOWED_EMAIL: Single email allowed to receive OTP and login
+SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMAIL, SMTP_SECURITY: SMTP configuration
+RESEND_API_KEY, RESEND_FROM_EMAIL: Resend fallback configuration
+
+Quotas/Limits:
+DAILY_TOKENS_FREE, DAILY_QUESTIONS_FREE, MAX_QUESTIONS_PER_INTERVIEW, MAX_AI_QUESTIONS_PER_INTERVIEW
+NEXT_QUESTION_COOLDOWN_SECONDS, REQUEST_LIMIT_PER_MINUTE, WINDOWS_BROWSER_ONLY

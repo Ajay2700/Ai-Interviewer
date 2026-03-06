@@ -1,0 +1,9 @@
+High-level architecture:
+- Frontend (candidate and admin React apps) handles UX, mic/camera capture, proctoring signals, and API integration.
+- Backend (FastAPI) orchestrates interviews, applies business rules (limits, cooldowns, modes), exposes admin CRUD and auth, and writes logs.
+- AI services (OpenAI) provide question generation, follow-up creation, and deterministic JSON evaluation; Whisper handles transcription.
+- Database (PostgreSQL/Supabase) persists users, questions, usage logs, interview sessions, and request logs used for rate limiting.
+
+Flow:
+Frontend -> Backend -> (OpenAI GPT/Whisper) and (PostgreSQL)
+Backend returns structured results and enforces policy.

@@ -1,0 +1,14 @@
+Question strategy:
+- Company mode: DB-only questions for consistency and anti-hallucination
+- AI mode: GPT-generated questions tailored by role and difficulty
+- Hybrid mode: first N DB questions then GPT follow-ups based on prior answers
+
+Evaluation:
+- Strict rubric prompt returns JSON: score (0-10), confidence (0-100), strengths, weaknesses, improvements, verdict, feedback
+- Parser tolerates formatting noise (backticks, extra text) and clamps values into ranges
+- Empty/irrelevant answers forced to score 0 and fail verdict
+
+Cost controls:
+- Daily token and question quotas per user; per-requester minute-level rate limiting
+- Per-session cooldown between next-question requests; per-interview caps on total and AI-only
+- Short-lived in-memory cache for generated questions to reduce repeated cost

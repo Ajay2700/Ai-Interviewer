@@ -1,0 +1,41 @@
+Main entry: backend/main.py
+- Loads env, configures logging, sets CORS from settings.allowed_origins
+- Includes routers: /api/admin (backend/api/admin/routes.py) and /api/interview (backend/api/candidate/routes.py)
+- Adds HTTP middleware for per-requester minute-level rate limiting (services/usage_service.py -> RequestLog)
+- Startup hook initializes DB schema (core/database.py)
+
+Configuration: backend/core/config.py
+- Normalizes DATABASE_URL (postgres:// -> postgresql://), splits ALLOWED_ORIGINS, exposes limits and toggles (tokens/questions per day, cooldowns, request limit, windows-only flag)
+
+Database and ORM: backend/core/database.py
+- Models: User, Question, UsageLog, InterviewSession, RequestLog
+- Session helper get_db(), timestamps in UTC, create_all on startup
+
+AI service: backend/services/openai_service.py
+- GPT-4o-mini for generate_ai_question, evaluate_answer (JSON rubric), follow-up generation (by history or previous Q/A)
+- In-memory cache for generated questions with TTL; token extraction and usage tracking per response
+
+Speech: backend/services/speech_service.py (primary) and backend/services/whisper_service.py (compat)
+- Saves upload to tmp_uploads, enforces size, calls whisper-1, cleans temp files
+
+Usage and limits: backend/services/usage_service.py
+- Ensures user records, resets daily counters, enforces token/question limits
+- Creates/validates sessions, cooldown enforcement, advances session state, caps per-interview totals and AI follow-ups
+- Records request logs for rate limiting
+
+Question bank: backend/services/question_service.py
+- CRUD for Question and deterministic selection by role+difficulty (company/hybrid modes)
+
+Admin auth and email: backend/services/admin_auth_service.py
+- Email OTP to allowed admin address; HMAC-signed token issuance and verification
+- SMTP sending with IPv4 fallback; Resend API fallback via httpx; setup-key protected SMTP test
+
+Candidate API: backend/api/candidate/routes.py
+- /api/interview/start (mode=company|ai|hybrid), /next, /answer (audio), /usage, /proctor-log
+- Enforces Windows desktop browser (when configured) by UA and sec-ch-ua-platform
+
+Admin API: backend/api/admin/routes.py
+- /auth/request-code, /auth/verify-code, /auth/smtp-test (setup), question CRUD endpoints
+
+Schemas: backend/models/schemas.py
+- Pydantic v2 models for requests/responses with field validation

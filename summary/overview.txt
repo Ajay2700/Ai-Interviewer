@@ -1,0 +1,9 @@
+AI Interviewer: a production-focused AI interviewing platform for technical assessments using voice. The system serves curated database questions and AI-generated questions, transcribes audio answers with Whisper, evaluates responses with a rubric-driven GPT model, tracks usage and limits, enforces basic proctoring, and provides an admin dashboard to manage the question bank.
+
+Core flow:
+1) Candidate starts interview (role, difficulty, mode)
+2) Backend returns first question (DB for company/hybrid, GPT for AI-only or fallback)
+3) Candidate records voice answer and uploads
+4) Backend transcribes with Whisper and evaluates with GPT (score, confidence, strengths, weaknesses, improvements, verdict, feedback)
+5) Next question comes from DB or GPT follow-up depending on mode and availability
+6) Usage counters, cooldowns, rate limits, and per-session caps govern costs and fairness

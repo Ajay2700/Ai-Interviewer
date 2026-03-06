@@ -1,0 +1,7 @@
+Frontend: React 19, Vite 7, Tailwind CSS, Axios, MediaPipe FaceMesh (camera_utils, face_mesh, drawing_utils)
+Backend: FastAPI, Uvicorn, Pydantic v2, SQLAlchemy 2.x, python-dotenv
+AI: OpenAI GPT-4o-mini (chat completions) for question generation, follow-ups, and evaluation; OpenAI Whisper (whisper-1) for speech-to-text
+Data/Infra: PostgreSQL (Supabase), Render (backend hosting), Vercel (frontend hosting)
+Email: SMTP (STARTTLS/SSL/None) with Resend fallback via httpx
+Runtime: Python 3.11.9 (runtime.txt files at repo root and backend)
+Other: CORS via FastAPI CORSMiddleware, rate limiting via DB-backed logs

@@ -1,0 +1,14 @@
+Candidate app (frontend/candidate):
+- React + Vite; API client in frontend/candidate/src/services/api.js
+- Resolves base URL from VITE_API_URL or same-origin; local default http://127.0.0.1:8010
+- Persists anonymous candidate ID in localStorage; rotates on daily limit errors
+- Endpoints: /api/interview/start, /next, /answer (multipart), etc.
+- Proctoring: hooks for behavioral (useProctoring) and visual (useFaceTracking) signals
+
+Admin app (frontend/admin):
+- React + Vite; API client in frontend/admin/src/services/api.js
+- Supports OTP login (stores bearer token in sessionStorage) with local fallback x-admin-key
+- CRUD for questions and SMTP connectivity test
+
+Shared frontend (frontend/src):
+- Additional hooks/components duplicated or shared for main app demo

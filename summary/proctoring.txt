@@ -1,0 +1,10 @@
+Visual signals (useFaceTracking):
+- MediaPipe FaceMesh detects landmarks and iris; computes EAR for blinks and simple gaze direction; detects head turns and low brightness
+- Raises warnings with cooldown; tracks violations and termination threshold
+
+Behavioral signals (useProctoring):
+- Detects tab switching, window blur, right-click, copy/paste/cut, devtools-like shortcuts; best-effort multi-display hint
+- Emits structured events; accumulates violations; provides environment readiness checks (mic, camera, single face, lighting)
+
+Limitations:
+- Browser sandbox prevents true system extension or tool enumeration; only detectable signals are captured and stored as JSONL on the backend
