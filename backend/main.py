@@ -74,15 +74,15 @@ app = create_app()
 
 @app.get("/health")
 def health_check():
-    from core.database import engine
+    import core.database as db_module
+    from sqlalchemy import text
+    current_engine = db_module.engine
     try:
-        from sqlalchemy import text
-        with engine.connect() as conn:
+        with current_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "ok"
-        db_url_type = "sqlite" if "sqlite" in str(engine.url) else "postgresql"
     except Exception as exc:
         db_status = f"error: {exc.__class__.__name__}"
-        db_url_type = "unknown"
+    db_url_type = "sqlite" if "sqlite" in str(current_engine.url) else "postgresql"
     return {"status": "ok", "db": db_status, "db_type": db_url_type}
 
