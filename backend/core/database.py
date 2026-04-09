@@ -26,40 +26,25 @@ def _build_engine(url: str):
     if is_sqlite:
         kwargs["connect_args"] = {"check_same_thread": False}
     else:
-        # Supabase / PgBouncer transaction pooler settings.
-        # pool_size=5 max_overflow=2 with recycle avoids stale connections.
-        kwargs["pool_size"] = 5
+        # PgBouncer / Supabase transaction pooler friendly settings.
+        kwargs["pool_size"] = 3
         kwargs["max_overflow"] = 2
         kwargs["pool_recycle"] = 300
-        kwargs["pool_timeout"] = 30
+        kwargs["pool_timeout"] = 10
     return create_engine(url, **kwargs)
 
 
-def _create_engine_with_fallback():
-    primary_url = settings.database_url
-    try:
-        eng = _build_engine(primary_url)
-        # Eagerly test the connection so we know quickly if credentials are wrong.
-        with eng.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        masked = primary_url.split("@")[-1] if "@" in primary_url else primary_url
-        logger.info("Database connected: %s", masked)
-        return eng
-    except Exception as exc:
-        if _is_sqlite_url(primary_url):
-            logger.critical("SQLite connection failed: %s", exc)
-            raise
-        logger.warning(
-            "Primary database unavailable (%s: %s). Falling back to SQLite at '%s'. "
-            "Set DATABASE_URL correctly in your environment to use PostgreSQL.",
-            exc.__class__.__name__,
-            exc,
-            _SQLITE_FALLBACK_URL,
-        )
-        return _build_engine(_SQLITE_FALLBACK_URL)
+def _sqlite_fallback_engine():
+    logger.warning(
+        "Switching to SQLite fallback at '%s'. "
+        "Set DATABASE_URL correctly in Render environment variables to use PostgreSQL.",
+        _SQLITE_FALLBACK_URL,
+    )
+    return _build_engine(_SQLITE_FALLBACK_URL)
 
 
-engine = _create_engine_with_fallback()
+# Module-level engine and session factory — updated in init_db() if fallback is needed.
+engine = _build_engine(settings.database_url)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
@@ -138,8 +123,34 @@ def utc_now() -> datetime:
 
 
 def init_db() -> None:
+    """Create all tables. Falls back to SQLite if the primary DB is unreachable."""
+    global engine, SessionLocal  # noqa: PLW0603
+
+    # --- try primary DB first ---
     try:
+        # Quick connectivity check before attempting DDL.
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables initialised.")
+        url_hint = str(engine.url).split("@")[-1] if "@" in str(engine.url) else str(engine.url)
+        logger.info("Database ready: %s", url_hint)
+        return
     except Exception as exc:
-        logger.error("init_db failed: %s — the app will start but DB writes may fail.", exc)
+        if _is_sqlite_url(str(engine.url)):
+            # Already on SQLite and it still failed — log and give up gracefully.
+            logger.error("SQLite init_db failed: %s", exc)
+            return
+        logger.warning(
+            "Primary database unreachable (%s: %s). Falling back to SQLite.",
+            exc.__class__.__name__,
+            exc,
+        )
+
+    # --- fall back to SQLite ---
+    try:
+        engine = _sqlite_fallback_engine()
+        SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+        Base.metadata.create_all(bind=engine)
+        logger.info("SQLite fallback database ready at '%s'.", _SQLITE_FALLBACK_URL)
+    except Exception as exc2:
+        logger.error("SQLite fallback init_db also failed: %s", exc2)

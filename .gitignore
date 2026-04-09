@@ -1,4 +1,4 @@
-# Never commit secrets
+# ── Secrets ────────────────────────────────────────────────────────────────────
 .env
 *.env
 backend/.env
@@ -6,10 +6,41 @@ frontend/.env
 frontend/admin/.env
 frontend/candidate/.env
 
-# Python
+# ── Python ─────────────────────────────────────────────────────────────────────
 **/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
 
-# Node
+# Virtual environments — NEVER commit these
+.venv/
+venv/
+env/
+backend/.venv/
+backend/venv/
+
+# Local SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Node ───────────────────────────────────────────────────────────────────────
 **/node_modules/
 **/dist/
+**/.next/
+**/.nuxt/
+
+# ── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
