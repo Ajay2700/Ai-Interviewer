@@ -57,7 +57,14 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def _startup():
-        init_db()
+        try:
+            init_db()
+        except Exception as exc:
+            logger.error(
+                "Database initialisation failed: %s — backend will start but DB features may be unavailable. "
+                "Check DATABASE_URL in your environment variables.",
+                exc,
+            )
 
     return app
 
@@ -67,5 +74,15 @@ app = create_app()
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    from core.database import engine
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_status = "ok"
+        db_url_type = "sqlite" if "sqlite" in str(engine.url) else "postgresql"
+    except Exception as exc:
+        db_status = f"error: {exc.__class__.__name__}"
+        db_url_type = "unknown"
+    return {"status": "ok", "db": db_status, "db_type": db_url_type}
 

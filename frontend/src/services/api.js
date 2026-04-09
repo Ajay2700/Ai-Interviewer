@@ -3,6 +3,10 @@ import axios from 'axios';
 function resolveBaseUrl() {
   const explicit = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
   if (explicit) return explicit;
+  // Dev: always same-origin so Vite can proxy /api → backend (works for localhost and LAN IP).
+  if (import.meta.env.DEV) {
+    return '';
+  }
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     if (host !== 'localhost' && host !== '127.0.0.1') {

@@ -76,7 +76,8 @@ class Settings:
     next_question_cooldown_seconds: int = _env_int("NEXT_QUESTION_COOLDOWN_SECONDS", 5)
     request_limit_per_minute: int = _env_int("REQUEST_LIMIT_PER_MINUTE", 10)
     max_audio_upload_bytes: int = _env_int("MAX_AUDIO_UPLOAD_BYTES", 5 * 1024 * 1024)
-    windows_browser_only: bool = _env_bool("WINDOWS_BROWSER_ONLY", True)
+    # Default off: local/dev and non-Chromium UAs often fail platform detection; enable in prod via env.
+    windows_browser_only: bool = _env_bool("WINDOWS_BROWSER_ONLY", False)
 
     @property
     def allowed_origins(self) -> list[str]:

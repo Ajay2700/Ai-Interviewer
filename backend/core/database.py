@@ -1,23 +1,65 @@
+import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Iterator
 
-from sqlalchemy import DateTime, Integer, String, Text, create_engine
+from sqlalchemy import DateTime, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from core.config import settings
 
+logger = logging.getLogger(__name__)
+
+_SQLITE_FALLBACK_URL = "sqlite:///./interviewer_local.db"
+
 
 def _is_sqlite_url(url: str) -> bool:
-    return url.strip().lower().startswith("sqlite")
+    return (url or "").strip().lower().startswith("sqlite")
 
 
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    future=True,
-    connect_args={"check_same_thread": False} if _is_sqlite_url(settings.database_url) else {},
-)
+def _build_engine(url: str):
+    is_sqlite = _is_sqlite_url(url)
+    kwargs: dict = {
+        "pool_pre_ping": True,
+        "future": True,
+    }
+    if is_sqlite:
+        kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        # Supabase / PgBouncer transaction pooler settings.
+        # pool_size=5 max_overflow=2 with recycle avoids stale connections.
+        kwargs["pool_size"] = 5
+        kwargs["max_overflow"] = 2
+        kwargs["pool_recycle"] = 300
+        kwargs["pool_timeout"] = 30
+    return create_engine(url, **kwargs)
+
+
+def _create_engine_with_fallback():
+    primary_url = settings.database_url
+    try:
+        eng = _build_engine(primary_url)
+        # Eagerly test the connection so we know quickly if credentials are wrong.
+        with eng.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        masked = primary_url.split("@")[-1] if "@" in primary_url else primary_url
+        logger.info("Database connected: %s", masked)
+        return eng
+    except Exception as exc:
+        if _is_sqlite_url(primary_url):
+            logger.critical("SQLite connection failed: %s", exc)
+            raise
+        logger.warning(
+            "Primary database unavailable (%s: %s). Falling back to SQLite at '%s'. "
+            "Set DATABASE_URL correctly in your environment to use PostgreSQL.",
+            exc.__class__.__name__,
+            exc,
+            _SQLITE_FALLBACK_URL,
+        )
+        return _build_engine(_SQLITE_FALLBACK_URL)
+
+
+engine = _create_engine_with_fallback()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
@@ -96,6 +138,8 @@ def utc_now() -> datetime:
 
 
 def init_db() -> None:
-    # SQLAlchemy metadata creation works for SQLite locally and PostgreSQL in production.
-    Base.metadata.create_all(bind=engine)
-
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialised.")
+    except Exception as exc:
+        logger.error("init_db failed: %s — the app will start but DB writes may fail.", exc)

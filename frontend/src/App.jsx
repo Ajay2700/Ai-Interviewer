@@ -72,6 +72,7 @@ function App() {
   const [candidateId, setCandidateId] = useState(() => ensureId(CANDIDATE_KEY, 'candidate'));
   const [usageSummary, setUsageSummary] = useState(null);
   const [usageError, setUsageError] = useState('');
+  const [startingInterview, setStartingInterview] = useState(false);
 
   const proctoring = useProctoring({ active: state === STATES.interviewing || state === STATES.evaluating });
   const {
@@ -131,7 +132,12 @@ function App() {
       return usage;
     } catch (err) {
       const detail = err?.response?.data?.detail;
-      setUsageError(detail || 'Failed to fetch usage summary.');
+      const isNetworkError = !err?.response;
+      setUsageError(
+        isNetworkError
+          ? 'Cannot reach backend. Make sure the API server is running.'
+          : detail || 'Failed to fetch usage summary.',
+      );
       return null;
     }
   };
@@ -178,6 +184,8 @@ function App() {
 
   const startInterview = async () => {
     setError('');
+    setStartingInterview(true);
+
     const rotateCandidate = () => {
       const nextCandidateId = createId('candidate');
       if (typeof window !== 'undefined') {
@@ -188,57 +196,72 @@ function App() {
       return nextCandidateId;
     };
 
-    let activeCandidateId = candidateId;
-    let usage = await loadUsageSummary(activeCandidateId);
-    if (usage && usage.questions_left_today <= 0) {
-      // Anonymous/public candidate flow: rotate test identity if a stale local ID exhausted quota.
-      activeCandidateId = rotateCandidate();
-      usage = await loadUsageSummary(activeCandidateId);
-      if (usage && usage.questions_left_today <= 0) {
-        setError('Question limit reached. Please try again tomorrow.');
-        return;
-      }
-    }
-    await fullscreen.requestFullscreen();
-    setState(STATES.interviewing);
-    setQuestionIndex(0);
-    setTimerLeft(QUESTION_SECONDS);
-    setAnswers([]);
-    setHistoryPayload([]);
-    setLogUploaded(false);
-    setSessionId((window.crypto?.randomUUID && window.crypto.randomUUID()) || `session-${Date.now()}`);
-    clearEvents();
-    appendEvent('session', 'Interview session started.', false, {
-      role,
-      difficulty,
-      mode,
-      extensionDetectionSupported: false,
-      note: 'Browsers do not allow full extension/tool enumeration.',
-    });
-    const applyStartResponse = async (res) => {
+    const enterInterview = async () => {
+      await fullscreen.requestFullscreen();
+      setQuestionIndex(0);
+      setTimerLeft(QUESTION_SECONDS);
+      setAnswers([]);
+      setHistoryPayload([]);
+      setLogUploaded(false);
+      clearEvents();
+      appendEvent('session', 'Interview session started.', false, {
+        role,
+        difficulty,
+        mode,
+        extensionDetectionSupported: false,
+        note: 'Browsers do not allow full extension/tool enumeration.',
+      });
+      setState(STATES.interviewing);
+    };
+
+    const applyStartResponse = async (res, candidateIdUsed) => {
       setSessionId(res.session_id || '');
       setQuestion(res.question);
       setQuestionSource(res.source || 'database');
       setQuestionIndex(res.question_index || 0);
-      await loadUsageSummary(activeCandidateId);
+      await loadUsageSummary(candidateIdUsed);
     };
+
+    let activeCandidateId = candidateId;
     try {
-      const res = await startInterviewApi(activeCandidateId, role, difficulty, mode);
-      await applyStartResponse(res);
-    } catch (err) {
-      const detail = err?.response?.data?.detail;
-      if ((detail || '').includes('Question limit reached')) {
-        try {
-          activeCandidateId = rotateCandidate();
-          const retryRes = await startInterviewApi(activeCandidateId, role, difficulty, mode);
-          await applyStartResponse(retryRes);
+      let usage = await loadUsageSummary(activeCandidateId);
+      if (usage && usage.questions_left_today <= 0) {
+        // Anonymous/public flow: rotate identity when local ID has exhausted quota.
+        activeCandidateId = rotateCandidate();
+        usage = await loadUsageSummary(activeCandidateId);
+        if (usage && usage.questions_left_today <= 0) {
+          setError('Question limit reached. Please try again tomorrow.');
+          setStartingInterview(false);
           return;
-        } catch {
-          // Fall through to shared error message below.
         }
       }
-      setError(detail ? `Failed to fetch question: ${detail}` : 'Failed to fetch question.');
+
+      let res;
+      try {
+        res = await startInterviewApi(activeCandidateId, role, difficulty, mode);
+      } catch (err) {
+        const detail = err?.response?.data?.detail;
+        const isNetworkError = !err?.response;
+        if ((detail || '').includes('Question limit reached')) {
+          // Retry once with a rotated identity.
+          activeCandidateId = rotateCandidate();
+          res = await startInterviewApi(activeCandidateId, role, difficulty, mode);
+        } else {
+          throw new Error(
+            isNetworkError
+              ? 'Cannot reach backend API. Ensure the server is running and VITE_API_URL is set correctly.'
+              : detail || 'Failed to start interview.',
+          );
+        }
+      }
+
+      await enterInterview();
+      await applyStartResponse(res, activeCandidateId);
+    } catch (err) {
+      setError(err?.message || 'Failed to start interview. Please try again.');
       setState(STATES.ready);
+    } finally {
+      setStartingInterview(false);
     }
   };
 
@@ -373,8 +396,12 @@ function App() {
     setError('Interview ended by candidate.');
   };
 
-  const startDisabled = (usageSummary?.questions_left_today ?? 1) <= 0;
-  const startDisabledReason = startDisabled ? 'Daily question limit reached.' : '';
+  const startDisabled = startingInterview || (usageSummary?.questions_left_today ?? 1) <= 0;
+  const startDisabledReason = startingInterview
+    ? 'Starting interview…'
+    : (usageSummary?.questions_left_today ?? 1) <= 0
+    ? 'Daily question limit reached.'
+    : '';
 
   return (
     <div
@@ -459,6 +486,7 @@ function App() {
                   currentState={state}
                   startDisabled={startDisabled}
                   startDisabledReason={startDisabledReason}
+                  startingInterview={startingInterview}
                 />
               )}
               {state === STATES.completed && (

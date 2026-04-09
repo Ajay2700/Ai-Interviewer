@@ -125,9 +125,10 @@ export default function useProctoring({ active }) {
   const clearWarning = useCallback(() => setWarning(''), []);
 
   const terminated = violations >= TERMINATION_THRESHOLD;
+  // Require mic + camera only; face/lighting are warnings, not hard blockers.
   const environmentReady = useMemo(() => {
-    return micReady && faceStatus.cameraReady && faceStatus.faceCount === 1 && faceStatus.lightingGood;
-  }, [faceStatus, micReady]);
+    return micReady && faceStatus.cameraReady;
+  }, [faceStatus.cameraReady, micReady]);
 
   return {
     violations,
