@@ -34,7 +34,8 @@
 
 ---
 
-![Uploading NotebookLM Mind Map.png…]()
+<img width="2407" height="6537" alt="NotebookLM Mind Map" src="https://github.com/user-attachments/assets/6e57d0c2-905a-4de6-b525-d89ba82ffa2e" />
+
 
 
 ## Table of Contents
