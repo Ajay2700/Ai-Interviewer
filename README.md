@@ -34,6 +34,9 @@
 
 ---
 
+![Uploading NotebookLM Mind Map.png…]()
+
+
 ## Table of Contents
 
 - [Features](#features)
