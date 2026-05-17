@@ -33,9 +33,9 @@
 <img width="1896" alt="Proctoring Panel" src="https://github.com/user-attachments/assets/32a03667-b647-4db0-8994-c479502d34b5" />
 
 ---
+## MINDMAP
 
-<img width="2407" height="6537" alt="NotebookLM Mind Map" src="https://github.com/user-attachments/assets/6e57d0c2-905a-4de6-b525-d89ba82ffa2e" />
-
+<img width="3136" height="8136" alt="NotebookLM Mind Map" src="https://github.com/user-attachments/assets/6e92075a-f452-41ac-9c75-944c51dbcc79" />
 
 
 ## Table of Contents
