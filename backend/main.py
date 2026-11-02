@@ -75,6 +75,7 @@ app = create_app()
 @app.get("/health")
 def health_check():
     import core.database as db_module
+    import services.ai_provider as ai_provider
     from sqlalchemy import text
     current_engine = db_module.engine
     try:
@@ -84,5 +85,12 @@ def health_check():
     except Exception as exc:
         db_status = f"error: {exc.__class__.__name__}"
     db_url_type = "sqlite" if "sqlite" in str(current_engine.url) else "postgresql"
-    return {"status": "ok", "db": db_status, "db_type": db_url_type}
+    payload = {"status": "ok", "db": db_status, "db_type": db_url_type}
+    # Diagnostics for the two outside dependencies: why DATABASE_URL was dropped, and the
+    # last OpenAI failure (e.g. billing_not_active) until a later call succeeds.
+    if db_module.primary_db_error:
+        payload["db_fallback_reason"] = db_module.primary_db_error
+    if ai_provider.last_ai_error:
+        payload["ai_last_error"] = ai_provider.last_ai_error["reason"]
+    return payload
 

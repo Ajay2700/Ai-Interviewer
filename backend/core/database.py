@@ -7,14 +7,30 @@ from sqlalchemy import DateTime, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from core.config import settings
+from core.default_questions import DEFAULT_QUESTIONS
 
 logger = logging.getLogger(__name__)
 
 _SQLITE_FALLBACK_URL = "sqlite:///./interviewer_local.db"
 
+# Why the primary DATABASE_URL was abandoned for SQLite; set by init_db, reported by /health.
+primary_db_error: str | None = None
+
 
 def _is_sqlite_url(url: str) -> bool:
     return (url or "").strip().lower().startswith("sqlite")
+
+
+def _classify_db_error(exc: Exception) -> str:
+    # Coarse category only: the raw driver message can include the host and username.
+    message = str(exc).lower()
+    if "tenant or user not found" in message or "password authentication failed" in message:
+        return "auth_failed"
+    if "could not translate host name" in message or "name or service not known" in message:
+        return "host_not_found"
+    if "timeout" in message or "timed out" in message or "connection refused" in message:
+        return "unreachable"
+    return exc.__class__.__name__
 
 
 def _build_engine(url: str):
@@ -122,9 +138,32 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _seed_default_questions() -> None:
+    """Give an empty question bank a starter set so Company/Hybrid modes have questions."""
+    if not settings.seed_default_questions:
+        return
+    try:
+        with get_db() as db:
+            if db.query(Question.id).first() is not None:
+                return
+            now = utc_now()
+            rows = [
+                Question(company="General", role=role, difficulty=difficulty, question=text_, created_at=now)
+                for role, by_difficulty in DEFAULT_QUESTIONS.items()
+                for difficulty, questions in by_difficulty.items()
+                for text_ in questions
+            ]
+            db.add_all(rows)
+            db.commit()
+        logger.info("Seeded %s default interview questions.", len(rows))
+    except Exception as exc:
+        # A starter bank is a convenience; never let it block startup or force a DB fallback.
+        logger.warning("Could not seed default questions: %s", exc)
+
+
 def init_db() -> None:
     """Create all tables. Falls back to SQLite if the primary DB is unreachable."""
-    global engine, SessionLocal  # noqa: PLW0603
+    global engine, SessionLocal, primary_db_error  # noqa: PLW0603
 
     # --- try primary DB first ---
     try:
@@ -134,12 +173,14 @@ def init_db() -> None:
         Base.metadata.create_all(bind=engine)
         url_hint = str(engine.url).split("@")[-1] if "@" in str(engine.url) else str(engine.url)
         logger.info("Database ready: %s", url_hint)
+        _seed_default_questions()
         return
     except Exception as exc:
         if _is_sqlite_url(str(engine.url)):
             # Already on SQLite and it still failed — log and give up gracefully.
             logger.error("SQLite init_db failed: %s", exc)
             return
+        primary_db_error = _classify_db_error(exc)
         logger.warning(
             "Primary database unreachable (%s: %s). Falling back to SQLite.",
             exc.__class__.__name__,
@@ -152,5 +193,6 @@ def init_db() -> None:
         SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
         Base.metadata.create_all(bind=engine)
         logger.info("SQLite fallback database ready at '%s'.", _SQLITE_FALLBACK_URL)
+        _seed_default_questions()
     except Exception as exc2:
         logger.error("SQLite fallback init_db also failed: %s", exc2)

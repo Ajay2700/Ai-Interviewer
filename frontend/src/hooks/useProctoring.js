@@ -54,9 +54,9 @@ export default function useProctoring({ active }) {
 
   const clearEvents = useCallback(() => setEvents([]), []);
 
+  // Client signals are captured when the interview starts (App.startInterview), not here.
   useEffect(() => {
     if (!active) return;
-    captureClientSignals();
 
     const onVisibility = () => {
       if (document.hidden) onViolation('Tab switching detected.');
@@ -108,7 +108,7 @@ export default function useProctoring({ active }) {
       window.removeEventListener('keydown', onKeyDown);
       window.clearInterval(screenCheck);
     };
-  }, [active, captureClientSignals, onViolation]);
+  }, [active, onViolation]);
 
   const runMicCheck = useCallback(async () => {
     try {

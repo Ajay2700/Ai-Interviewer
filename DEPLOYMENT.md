@@ -70,10 +70,11 @@ uvicorn main:app --host 0.0.0.0 --port 10000
 | `MAX_QUESTIONS_PER_INTERVIEW` | `10` |
 | `REQUEST_LIMIT_PER_MINUTE` | `10` |
 | `WINDOWS_BROWSER_ONLY` | `false` (set `true` only if you want Windows-only access) |
+| `SEED_DEFAULT_QUESTIONS` | `true` (fills an empty question bank with 3 starter questions per role and difficulty) |
 
 7. **Verify the backend is running:**  
    Visit `https://your-render-app.onrender.com/health` — you should see `{"status":"ok","db":"ok","db_type":"postgresql"}`.  
-   If `db_type` is `sqlite`, the DATABASE_URL is wrong — check step 1.
+   If `db_type` is `sqlite`, the DATABASE_URL is wrong — check step 1 and the `db_fallback_reason` field (see Troubleshooting).
 
 ---
 
@@ -129,4 +130,20 @@ Open `http://localhost:5173`.
 - Token + question limits control OpenAI costs.
 - Rate limiting blocks request spikes/abuse.
 - The backend falls back to SQLite if PostgreSQL is unavailable — useful as a safety net but not a substitute for a real DB in production.
+- An empty question bank is seeded with starter questions on startup, so Company and Hybrid modes work without calling OpenAI for questions. Admin-curated banks are never touched.
 - For high traffic: replace in-memory AI cache with Redis, add a worker queue (Celery/RQ).
+
+---
+
+## 7) Troubleshooting
+
+`/health` reports why the backend's two outside dependencies are failing:
+
+| `/health` shows | What candidates see | Cause | Fix |
+|---|---|---|---|
+| `"ai_last_error": "billing_not_active"` or `"insufficient_quota"` | "AI … is temporarily unavailable" (HTTP 503) | The OpenAI account has no active billing or credits | Add a payment method or credits at platform.openai.com → Settings → Billing, then retry. No redeploy needed. |
+| `"ai_last_error": "invalid_api_key"` or `"missing_api_key"` | Same 503 message | `OPENAI_API_KEY` in Render is wrong or unset | Set a valid key in Render → Environment; Render redeploys automatically |
+| `"db_type": "sqlite"` with `"db_fallback_reason": "auth_failed"` | Works, but data resets on every deploy | Supabase rejected the login: wrong pooler username/password, or the project is paused/deleted | Restore the project in Supabase (free projects pause after a week of inactivity) or create a new one, then update `DATABASE_URL` (step 1) |
+| `"db_fallback_reason": "host_not_found"` or `"unreachable"` | Same as above | Wrong host in `DATABASE_URL`, or the project no longer exists | Copy the connection string again from Supabase (step 1) |
+
+`ai_last_error` clears itself after the next successful OpenAI call.

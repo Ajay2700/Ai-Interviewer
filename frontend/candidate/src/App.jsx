@@ -37,7 +37,6 @@ function App() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [error, setError] = useState('');
-  const [historyPayload, setHistoryPayload] = useState([]);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [pendingSkipCompletion, setPendingSkipCompletion] = useState(null);
   const [interviewId, setInterviewId] = useState('');
@@ -61,21 +60,28 @@ function App() {
 
   useEffect(() => {
     if (state !== STATES.interviewing) return undefined;
-    if (timerLeft <= 0) {
-      onViolation('Time limit exceeded. Submit your answer promptly.');
-      setTimerLeft(QUESTION_SECONDS);
-      return undefined;
-    }
-    const t = window.setTimeout(() => setTimerLeft((prev) => prev - 1), 1000);
+    const t = window.setTimeout(() => {
+      // Expire inside the tick so the reset isn't a synchronous setState in the effect body.
+      if (timerLeft <= 1) {
+        onViolation('Time limit exceeded. Submit your answer promptly.');
+        setTimerLeft(QUESTION_SECONDS);
+      } else {
+        setTimerLeft(timerLeft - 1);
+      }
+    }, 1000);
     return () => window.clearTimeout(t);
   }, [state, timerLeft, onViolation]);
 
-  useEffect(() => {
+  // End the interview as soon as proctoring reports termination. Adjusting state while
+  // rendering (React's "adjust state when a value changes" pattern) avoids an extra effect.
+  const [wasTerminated, setWasTerminated] = useState(terminated);
+  if (terminated !== wasTerminated) {
+    setWasTerminated(terminated);
     if (terminated) {
       setState(STATES.completed);
       setError('Interview auto-terminated due to suspicious activity.');
     }
-  }, [terminated]);
+  }
 
   const startInterview = async () => {
     setError('');
@@ -84,7 +90,6 @@ function App() {
     setQuestionIndex(0);
     setTimerLeft(QUESTION_SECONDS);
     setAnswers([]);
-    setHistoryPayload([]);
     try {
       const res = await startInterviewApi(role, difficulty);
       setInterviewId(res.interview_id);
@@ -109,7 +114,6 @@ function App() {
       };
       const nextAnswers = [...answers, nextEntry];
       setAnswers(nextAnswers);
-      setHistoryPayload((prev) => [...prev, nextEntry]);
 
       const done = nextAnswers.length >= TOTAL_QUESTIONS;
       if (done) {
@@ -300,7 +304,6 @@ function App() {
                   setAnswers([]);
                   setQuestionIndex(0);
                   setTimerLeft(QUESTION_SECONDS);
-                  setHistoryPayload([]);
                   setError('');
                 }}
               />

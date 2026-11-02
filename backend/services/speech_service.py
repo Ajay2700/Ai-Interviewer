@@ -2,10 +2,13 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
+import openai
 from dotenv import load_dotenv
 from fastapi import HTTPException, status
 from fastapi import UploadFile
 from openai import OpenAI
+
+from services.ai_provider import provider_failure, provider_ok
 
 
 _client: OpenAI | None = None
@@ -17,14 +20,12 @@ def get_client() -> OpenAI:
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set")
+            raise openai.OpenAIError("OPENAI_API_KEY is not set")
         _client = OpenAI(api_key=api_key)
     return _client
 
 
 async def transcribe_audio(upload: UploadFile, max_bytes: int = 5 * 1024 * 1024) -> str:
-    client = get_client()
-
     # Keep temp files in project path to avoid Windows temp locking issues.
     suffix = os.path.splitext(upload.filename or "")[1] or ".webm"
     temp_dir = Path(__file__).resolve().parents[1] / "tmp_uploads"
@@ -41,12 +42,16 @@ async def transcribe_audio(upload: UploadFile, max_bytes: int = 5 * 1024 * 1024)
         with open(tmp_path, "wb") as tmp_file:
             tmp_file.write(content)
 
-        with open(tmp_path, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text",
-            )
+        try:
+            with open(tmp_path, "rb") as audio_file:
+                transcript = get_client().audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    response_format="text",
+                )
+        except openai.OpenAIError as exc:
+            raise provider_failure("speech transcription", exc) from exc
+        provider_ok()
 
         return transcript.strip()
     finally:

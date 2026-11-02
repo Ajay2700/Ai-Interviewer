@@ -53,11 +53,11 @@ function Interview({
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
             Fullscreen, anti-cheating checks, and strict sequential evaluation are enabled.
           </p>
-          <div className="mt-5 flex items-center justify-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             >
               {roles.map((item) => (
                 <option key={item}>{item}</option>
@@ -66,7 +66,7 @@ function Interview({
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="easy">easy</option>
               <option value="medium">medium</option>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera } from '@mediapipe/camera_utils';
 import {
   FACEMESH_LEFT_IRIS,
   FACEMESH_RIGHT_IRIS,
@@ -111,6 +110,12 @@ function brightnessFromFrame(video, canvas) {
   return avg > 45;
 }
 
+function cameraErrorMessage(err) {
+  if (err?.name === 'NotAllowedError') return 'Camera permission denied. Allow camera access and reload.';
+  if (err?.name === 'NotFoundError') return 'No camera found. Connect a camera and reload.';
+  return 'Camera initialization failed';
+}
+
 export default function useFaceTracking({
   active,
   videoRef,
@@ -130,7 +135,7 @@ export default function useFaceTracking({
   const [cameraReady, setCameraReady] = useState(false);
 
   const faceMeshRef = useRef(null);
-  const cameraRef = useRef(null);
+  const frameRef = useRef(0);
   const lastBlinkRef = useRef(false);
   const gazeAwaySinceRef = useRef(null);
   const warningCooldownRef = useRef({});
@@ -138,6 +143,15 @@ export default function useFaceTracking({
   const blinkTimestampsRef = useRef([]);
   const analysisCanvasRef = useRef(null);
   const eyeAwayFramesRef = useRef(0);
+  // Latest callbacks live in refs so parents passing inline handlers don't restart the
+  // camera and FaceMesh (the effect below depends on pushWarning) on every render.
+  const onViolationRef = useRef(onViolation);
+  const onTerminateRef = useRef(onTerminate);
+
+  useEffect(() => {
+    onViolationRef.current = onViolation;
+    onTerminateRef.current = onTerminate;
+  }, [onViolation, onTerminate]);
 
   const pushWarning = useCallback(
     (message, key = message, cooldownMs = 1500) => {
@@ -147,17 +161,15 @@ export default function useFaceTracking({
       warningCooldownRef.current[key] = now;
 
       setWarnings((prev) => [...prev, message].slice(-4));
-      setViolations((prev) => {
-        const next = prev + 1;
-        violationRef.current = next;
-        onViolation?.(message);
-        if (next > maxViolations) {
-          onTerminate?.(message);
-        }
-        return next;
-      });
+      const next = violationRef.current + 1;
+      violationRef.current = next;
+      setViolations(next);
+      onViolationRef.current?.(message);
+      if (next > maxViolations) {
+        onTerminateRef.current?.(message);
+      }
     },
-    [maxViolations, onTerminate, onViolation],
+    [maxViolations],
   );
 
   const processLandmarks = useCallback(
@@ -270,32 +282,42 @@ export default function useFaceTracking({
 
       faceMeshRef.current = faceMesh;
 
-      const camera = new Camera(video, {
-        width: 640,
-        height: 480,
-        onFrame: async () => {
-          if (!cancelled && faceMeshRef.current) {
+      // Drive frames ourselves rather than via @mediapipe/camera_utils, whose start()
+      // pops a blocking alert() when there is no camera or permission is denied.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' },
+        audio: false,
+      });
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      video.srcObject = stream;
+      await video.play();
+
+      const pumpFrames = async () => {
+        if (cancelled) return;
+        try {
+          if (video.readyState >= 2 && faceMeshRef.current) {
             await faceMeshRef.current.send({ image: video });
           }
-        },
-      });
-
-      cameraRef.current = camera;
-      await camera.start();
+        } catch {
+          // FaceMesh can reject while it is being torn down; the next frame retries.
+        }
+        if (!cancelled) frameRef.current = requestAnimationFrame(pumpFrames);
+      };
+      frameRef.current = requestAnimationFrame(pumpFrames);
     };
 
-    setup().catch(() => {
+    setup().catch((err) => {
+      if (cancelled) return;
       setCameraReady(false);
-      pushWarning('Camera initialization failed', 'camera-init', 4000);
+      pushWarning(cameraErrorMessage(err), 'camera-init', 4000);
     });
 
     return () => {
       cancelled = true;
-      try {
-        cameraRef.current?.stop();
-      } catch {
-        // no-op
-      }
+      cancelAnimationFrame(frameRef.current);
       if (video.srcObject) {
         const stream = video.srcObject;
         if (stream.getTracks) {
@@ -305,7 +327,6 @@ export default function useFaceTracking({
       }
       faceMeshRef.current?.close();
       faceMeshRef.current = null;
-      cameraRef.current = null;
     };
   }, [active, videoRef, canvasRef, processLandmarks, pushWarning]);
 

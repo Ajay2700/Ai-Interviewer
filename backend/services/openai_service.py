@@ -4,10 +4,12 @@ import os
 import time
 from typing import Any, Dict, List, Tuple
 
+import openai
 from dotenv import load_dotenv
 from openai import OpenAI
 
 from core.config import settings
+from services.ai_provider import provider_failure, provider_ok
 from services.usage_service import check_token_limit, update_usage
 from utils.prompts import CONVERSATION_FOLLOWUP_PROMPT, EVALUATION_PROMPT
 
@@ -25,7 +27,7 @@ def get_client() -> OpenAI:
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set")
+            raise openai.OpenAIError("OPENAI_API_KEY is not set")
         _client = OpenAI(api_key=api_key)
     return _client
 
@@ -71,17 +73,20 @@ async def generate_ai_question(role: str, difficulty: str, user_id: str | None =
     if cached:
         return cached
 
-    client = get_client()
     prompt = f"Generate one {difficulty} interview question for {role}. Return only the question."
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You generate concise technical interview questions."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-        max_tokens=150,
-    )
+    try:
+        response = get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You generate concise technical interview questions."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            max_tokens=150,
+        )
+    except openai.OpenAIError as exc:
+        raise provider_failure("question generation", exc) from exc
+    provider_ok()
     _track_usage_if_needed(user_id=user_id, response=response, endpoint="/openai/question")
     question = (response.choices[0].message.content or "").strip()
     if question:
@@ -97,18 +102,21 @@ async def generate_question(role: str) -> str:
 async def evaluate_answer(answer: str, question: str, user_id: str | None = None) -> Dict[str, Any]:
     if user_id:
         check_token_limit(user_id)
-    client = get_client()
     prompt = EVALUATION_PROMPT.format(answer=answer, question=question)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a strict senior interviewer."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-        max_tokens=400,
-        response_format={"type": "json_object"},
-    )
+    try:
+        response = get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a strict senior interviewer."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            max_tokens=400,
+            response_format={"type": "json_object"},
+        )
+    except openai.OpenAIError as exc:
+        raise provider_failure("answer evaluation", exc) from exc
+    provider_ok()
     _track_usage_if_needed(user_id=user_id, response=response, endpoint="/openai/evaluate")
     raw_content = response.choices[0].message.content or ""
     try:
@@ -170,7 +178,6 @@ async def generate_followup_from_history(
 ) -> str:
     if user_id:
         check_token_limit(user_id)
-    client = get_client()
     trimmed_history = history[-8:]
     history_text_lines = []
     for idx, item in enumerate(trimmed_history, start=1):
@@ -183,15 +190,19 @@ async def generate_followup_from_history(
         history_text_lines.append(line)
     history_text = "\n\n".join(history_text_lines) or "No previous questions yet."
     prompt = CONVERSATION_FOLLOWUP_PROMPT.format(role=role, history=history_text)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You orchestrate a structured technical interview."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-        max_tokens=150,
-    )
+    try:
+        response = get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You orchestrate a structured technical interview."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            max_tokens=150,
+        )
+    except openai.OpenAIError as exc:
+        raise provider_failure("question generation", exc) from exc
+    provider_ok()
     _track_usage_if_needed(user_id=user_id, response=response, endpoint="/openai/followup-history")
     return (response.choices[0].message.content or "").strip()
 
@@ -205,7 +216,6 @@ async def generate_followup_question(
 ) -> str:
     if user_id:
         check_token_limit(user_id)
-    client = get_client()
     prompt = (
         "Based on this question and answer, generate a follow-up interview question.\n\n"
         f"Role: {role}\n"
@@ -214,15 +224,19 @@ async def generate_followup_question(
         f"Answer: {user_answer}\n\n"
         "Return only the question."
     )
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You generate strict, role-relevant interview questions."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-        max_tokens=150,
-    )
+    try:
+        response = get_client().chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You generate strict, role-relevant interview questions."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            max_tokens=150,
+        )
+    except openai.OpenAIError as exc:
+        raise provider_failure("question generation", exc) from exc
+    provider_ok()
     _track_usage_if_needed(user_id=user_id, response=response, endpoint="/openai/followup")
     return (response.choices[0].message.content or "").strip()
 

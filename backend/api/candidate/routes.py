@@ -17,6 +17,7 @@ from models.schemas import (
     ProctoringLogResponse,
     UsageSummaryResponse,
 )
+from services.ai_provider import AIServiceUnavailable
 from services.openai_service import evaluate_answer, generate_ai_question, generate_followup_question
 from services.question_service import get_company_questions
 from services.speech_service import transcribe_audio
@@ -74,6 +75,15 @@ def _is_valid_audio_upload(audio: UploadFile) -> bool:
     ):
         return True
     return False
+
+
+def _ai_unavailable(exc: AIServiceUnavailable, consequence: str = "") -> HTTPException:
+    # The provider reason (billing, quota, API key) stays in the server log and /health;
+    # candidates get a clear retry message instead of a raw provider error.
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"AI {exc.feature} is temporarily unavailable{consequence}. Please try again in a few minutes.",
+    )
 
 
 @router.get("/start", response_model=InterviewStartResponse)
@@ -142,6 +152,8 @@ async def start_interview(
         )
     except HTTPException:
         raise
+    except AIServiceUnavailable as exc:
+        raise _ai_unavailable(exc) from exc
     except Exception as exc:
         logger.exception("start_interview failed")
         raise HTTPException(
@@ -228,6 +240,8 @@ async def next_question(payload: InterviewNextRequest, request: Request):
         )
     except HTTPException:
         raise
+    except AIServiceUnavailable as exc:
+        raise _ai_unavailable(exc) from exc
     except Exception as exc:
         logger.exception("next_question failed")
         raise HTTPException(
@@ -253,6 +267,11 @@ async def answer(
         transcript = await transcribe_audio(audio, max_bytes=settings.max_audio_upload_bytes)
         evaluation = await evaluate_answer(answer=transcript, question=question, user_id=user_id or None)
         return AnswerResponse(transcript=transcript, evaluation=evaluation)
+    except HTTPException:
+        # e.g. 413 from transcribe_audio for oversized uploads.
+        raise
+    except AIServiceUnavailable as exc:
+        raise _ai_unavailable(exc, ", so this answer could not be scored") from exc
     except Exception as exc:
         logger.exception("answer failed")
         raise HTTPException(

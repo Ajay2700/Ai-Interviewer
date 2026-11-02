@@ -78,6 +78,8 @@ class Settings:
     max_audio_upload_bytes: int = _env_int("MAX_AUDIO_UPLOAD_BYTES", 5 * 1024 * 1024)
     # Default off: local/dev and non-Chromium UAs often fail platform detection; enable in prod via env.
     windows_browser_only: bool = _env_bool("WINDOWS_BROWSER_ONLY", False)
+    # Fill an empty question bank with core/default_questions.py on startup.
+    seed_default_questions: bool = _env_bool("SEED_DEFAULT_QUESTIONS", True)
 
     @property
     def allowed_origins(self) -> list[str]:

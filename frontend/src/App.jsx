@@ -64,7 +64,6 @@ function App() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [error, setError] = useState('');
-  const [historyPayload, setHistoryPayload] = useState([]);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [pendingSkipCompletion, setPendingSkipCompletion] = useState(null);
   const [sessionId, setSessionId] = useState('');
@@ -85,6 +84,7 @@ function App() {
     events,
     clearEvents,
     appendEvent,
+    captureClientSignals,
   } = proctoring;
   const fullscreen = useFullscreen({
     active: state === STATES.interviewing || state === STATES.evaluating,
@@ -201,7 +201,6 @@ function App() {
       setQuestionIndex(0);
       setTimerLeft(QUESTION_SECONDS);
       setAnswers([]);
-      setHistoryPayload([]);
       setLogUploaded(false);
       clearEvents();
       appendEvent('session', 'Interview session started.', false, {
@@ -211,6 +210,7 @@ function App() {
         extensionDetectionSupported: false,
         note: 'Browsers do not allow full extension/tool enumeration.',
       });
+      captureClientSignals();
       setState(STATES.interviewing);
     };
 
@@ -279,7 +279,6 @@ function App() {
       };
       const nextAnswers = [...answers, nextEntry];
       setAnswers(nextAnswers);
-      setHistoryPayload((prev) => [...prev, nextEntry]);
 
       const done = nextAnswers.length >= TOTAL_QUESTIONS;
       if (done) {
@@ -505,7 +504,6 @@ function App() {
                     setAnswers([]);
                     setQuestionIndex(0);
                     setTimerLeft(QUESTION_SECONDS);
-                    setHistoryPayload([]);
                     setError('');
                     setSessionId('');
                     setLogUploaded(false);
